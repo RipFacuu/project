@@ -96,19 +96,32 @@ const QRForm: React.FC<QRFormProps> = ({ qrCode, onSave, onCancel, loading, onCh
   };
 
   const generateQRValue = () => {
-    if (!qrCode?.id && (!formData.first_name || !formData.last_name)) return '';
+    console.log('🔄 Generando valor del QR...');
+    console.log('📝 QR Code existente:', qrCode);
+    console.log('💾 Saved QR:', savedQR);
+    console.log('📋 Form data:', formData);
+    
+    if (!qrCode?.id && (!formData.first_name || !formData.last_name)) {
+      console.log('❌ No hay datos suficientes para generar QR');
+      return '';
+    }
     
     // Si es un QR existente, usar el ID real
     if (qrCode?.id) {
-      return `${window.location.origin}/scan/${qrCode.id}`;
+      const url = `${window.location.origin}/scan/${qrCode.id}`;
+      console.log('✅ Usando ID de QR existente:', url);
+      return url;
     }
     
     // Si hay un QR guardado recientemente, usar su ID
     if (savedQR?.id) {
-      return `${window.location.origin}/scan/${savedQR.id}`;
+      const url = `${window.location.origin}/scan/${savedQR.id}`;
+      console.log('✅ Usando ID de QR guardado:', url);
+      return url;
     }
     
     // Si es un nuevo QR, mostrar un mensaje de vista previa
+    console.log('⚠️ Mostrando vista previa - QR se generará después de guardar');
     return 'Vista previa - El QR se generará después de guardar';
   };
 
@@ -219,14 +232,24 @@ const QRForm: React.FC<QRFormProps> = ({ qrCode, onSave, onCancel, loading, onCh
               <span>{loading ? 'Guardando...' : 'Guardar'}</span>
             </button>
             
-            <button
-              type="button"
-              onClick={onCancel}
-              className="flex items-center space-x-2 px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors duration-200"
-            >
-              <X className="w-4 h-4" />
-              <span>Cancelar</span>
-            </button>
+            {savedQR ? (
+              <button
+                type="button"
+                onClick={onCancel}
+                className="flex items-center space-x-2 px-6 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors duration-200"
+              >
+                <span>✅ Cerrar</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={onCancel}
+                className="flex items-center space-x-2 px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors duration-200"
+              >
+                <X className="w-4 h-4" />
+                <span>Cancelar</span>
+              </button>
+            )}
           </div>
         </form>
       </div>

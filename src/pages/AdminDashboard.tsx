@@ -37,30 +37,48 @@ const AdminDashboard: React.FC = () => {
   };
 
   const handleSave = async (formData: CreateQRCodeData) => {
+    console.log('🔄 Iniciando guardado de QR code...');
+    console.log('📝 Datos del formulario:', formData);
+    console.log('✏️ Editando QR existente:', !!editingQR);
+    
     setSaving(true);
     try {
       if (editingQR) {
+        console.log('📝 Actualizando QR existente con ID:', editingQR.id);
         // Update existing QR
         const { error } = await qrCodeService.updateQRCode(editingQR.id, formData);
         if (error) throw error;
+        console.log('✅ QR actualizado exitosamente');
         setSavedQR(null); // Clear saved QR for updates
+        
+        // Close form immediately for updates
+        await fetchQRCodes();
+        setShowForm(false);
+        setEditingQR(null);
       } else {
+        console.log('🆕 Creando nuevo QR code...');
         // Create new QR
         const { data, error } = await qrCodeService.createQRCode(formData);
         if (error) throw error;
+        
+        console.log('✅ QR creado exitosamente:', data);
+        console.log('🆔 ID del QR creado:', data?.id);
+        console.log('🔗 URL del QR:', `${window.location.origin}/scan/${data?.id}`);
+        
         setSavedQR(data); // Store the newly created QR
+        
+        // Don't close form immediately - let user see the generated QR
+        await fetchQRCodes();
+        // setShowForm(false); // Comentado para que el usuario vea el QR
+        // setEditingQR(null); // Comentado para que el usuario vea el QR
       }
-
-      await fetchQRCodes();
-      setShowForm(false);
-      setEditingQR(null);
-      setSavedQR(null);
     } catch (error: unknown) {
-      console.error('Error saving QR code:', error);
+      console.error('❌ Error saving QR code:', error);
       const errorMessage = error instanceof Error ? error.message : 'Error al guardar el código QR';
       alert(errorMessage);
     } finally {
       setSaving(false);
+      console.log('🏁 Guardado completado');
     }
   };
 
@@ -95,30 +113,172 @@ const AdminDashboard: React.FC = () => {
 
   // Función de depuración para mostrar información de los QR codes
   const debugQRCodes = () => {
-    console.log('QR Codes en la base de datos:');
+    console.log('🔍 === DEBUG QR CODES ===');
+    console.log('📊 Total de QR codes en la lista:', qrCodes.length);
+    
+    if (qrCodes.length === 0) {
+      console.log('⚠️ No hay QR codes en la lista');
+      return;
+    }
+    
     qrCodes.forEach((qr, index) => {
-      console.log(`${index + 1}. ID: ${qr.id}`);
-      console.log(`   Nombre: ${qr.first_name} ${qr.last_name}`);
-      console.log(`   DNI: ${qr.dni}`);
-      console.log(`   URL: ${window.location.origin}/scan/${qr.id}`);
-      console.log('---');
+      console.log(`\n${index + 1}. QR Code:`);
+      console.log(`   🆔 ID: ${qr.id}`);
+      console.log(`   👤 Nombre: ${qr.first_name} ${qr.last_name}`);
+      console.log(`   🆔 DNI: ${qr.dni}`);
+      console.log(`   📅 Creado: ${qr.created_at}`);
+      console.log(`   🔗 URL: ${window.location.origin}/scan/${qr.id}`);
+      console.log(`   👤 User ID: ${qr.user_id}`);
     });
+    
+    console.log('\n🔍 === FIN DEBUG ===');
+  };
+
+  // Verificar todos los QRs en la base de datos (no solo del usuario actual)
+  const debugAllQRCodes = async () => {
+    console.log('🔍 === DEBUG ALL QR CODES IN DATABASE ===');
+    
+    try {
+      const { data, error } = await qrCodeService.getAllQRCodes();
+      
+      if (error) {
+        console.error('❌ Error obteniendo todos los QRs:', error);
+        return;
+      }
+      
+      if (!data || data.length === 0) {
+        console.log('⚠️ No hay QR codes en la base de datos');
+        return;
+      }
+      
+      console.log(`📊 Total de QR codes en la base de datos: ${data.length}`);
+      
+      data.forEach((qr, index) => {
+        console.log(`\n${index + 1}. QR Code en DB:`);
+        console.log(`   🆔 ID: ${qr.id}`);
+        console.log(`   👤 Nombre: ${qr.first_name} ${qr.last_name}`);
+        console.log(`   🆔 DNI: ${qr.dni}`);
+        console.log(`   📅 Creado: ${qr.created_at}`);
+        console.log(`   🔗 URL: ${window.location.origin}/scan/${qr.id}`);
+        console.log(`   👤 User ID: ${qr.user_id}`);
+      });
+      
+      console.log('\n🔍 === FIN DEBUG ALL ===');
+    } catch (error) {
+      console.error('❌ Error en debugAllQRCodes:', error);
+    }
+  };
+
+  // Probar un QR específico
+  const testSpecificQR = async () => {
+    if (qrCodes.length === 0) {
+      alert('No hay QR codes para probar');
+      return;
+    }
+    
+    const firstQR = qrCodes[0];
+    const testUrl = `${window.location.origin}/scan/${firstQR.id}`;
+    
+    console.log('🧪 === TESTING SPECIFIC QR ===');
+    console.log('🆔 QR a probar:', firstQR);
+    console.log('🔗 URL de prueba:', testUrl);
+    
+    // Verificar si el QR existe en la base de datos
+    const { exists, data } = await qrCodeService.debugQRCode(firstQR.id);
+    
+    if (exists && data) {
+      console.log('✅ QR encontrado en la base de datos:', data);
+      alert(`QR válido encontrado: ${data.first_name} ${data.last_name}\nURL: ${testUrl}`);
+      
+      // Abrir la URL en una nueva pestaña
+      window.open(testUrl, '_blank');
+    } else {
+      console.log('❌ QR no encontrado en la base de datos');
+      alert('QR no encontrado en la base de datos');
+    }
+    
+    console.log('🧪 === FIN TEST ===');
+  };
+
+  // Limpiar QRs corruptos y regenerar
+  const cleanAndRegenerateQRs = async () => {
+    console.log('🧹 === CLEANING AND REGENERATING QRS ===');
+    
+    try {
+      // Obtener todos los QRs
+      const { data: allQRs, error } = await qrCodeService.getAllQRCodes();
+      
+      if (error) {
+        console.error('❌ Error obteniendo QRs:', error);
+        return;
+      }
+      
+      if (!allQRs || allQRs.length === 0) {
+        console.log('⚠️ No hay QRs para limpiar');
+        return;
+      }
+      
+      console.log(`📊 Total de QRs encontrados: ${allQRs.length}`);
+      
+      // Verificar cada QR
+      const validQRs = [];
+      const invalidQRs = [];
+      
+      for (const qr of allQRs) {
+        const { exists } = await qrCodeService.debugQRCode(qr.id);
+        if (exists) {
+          validQRs.push(qr);
+        } else {
+          invalidQRs.push(qr);
+        }
+      }
+      
+      console.log(`✅ QRs válidos: ${validQRs.length}`);
+      console.log(`❌ QRs inválidos: ${invalidQRs.length}`);
+      
+      if (invalidQRs.length > 0) {
+        console.log('🗑️ QRs inválidos encontrados:');
+        invalidQRs.forEach(qr => {
+          console.log(`   - ${qr.first_name} ${qr.last_name} (ID: ${qr.id})`);
+        });
+        
+        const shouldDelete = confirm(`Se encontraron ${invalidQRs.length} QRs inválidos. ¿Deseas eliminarlos?`);
+        if (shouldDelete) {
+          for (const qr of invalidQRs) {
+            await qrCodeService.deleteQRCode(qr.id);
+            console.log(`🗑️ Eliminado QR inválido: ${qr.id}`);
+          }
+          await fetchQRCodes();
+          alert('QRs inválidos eliminados. Por favor, crea nuevos QRs válidos.');
+        }
+      } else {
+        alert('Todos los QRs son válidos. No hay necesidad de limpiar.');
+      }
+      
+    } catch (error) {
+      console.error('❌ Error en cleanAndRegenerateQRs:', error);
+    }
+    
+    console.log('🧹 === FIN CLEANING ===');
   };
 
   // Verificar el QR problemático específico
   const checkProblematicQR = async () => {
-    const problematicId = 'gru1::ndmlz-1754504096000-39cac0f4e72a';
-    console.log(`Verificando QR problemático: ${problematicId}`);
+    const problematicId = 'gru1::gnjlc-1754504776684-745c34a470a5';
+    console.log('🔍 === CHECKING PROBLEMATIC QR ===');
+    console.log('🆔 ID problemático:', problematicId);
     
     const { exists, data } = await qrCodeService.debugQRCode(problematicId);
     
     if (exists && data) {
-      console.log('✅ QR encontrado:', data);
+      console.log('✅ QR problemático encontrado:', data);
       alert(`QR encontrado: ${data.first_name} ${data.last_name} (DNI: ${data.dni})`);
     } else {
-      console.log('❌ QR no encontrado');
-      alert('QR no encontrado en la base de datos. Este QR puede haber sido eliminado o nunca existió.');
+      console.log('❌ QR problemático NO encontrado en la base de datos');
+      alert('QR problemático NO encontrado en la base de datos. Este QR debe ser regenerado.');
     }
+    
+    console.log('🔍 === FIN CHECKING ===');
   };
 
   // Ejecutar depuración cuando se cargan los QR codes
@@ -183,10 +343,31 @@ const AdminDashboard: React.FC = () => {
                 </button>
                 
                 <button
-                  onClick={checkProblematicQR}
+                  onClick={debugAllQRCodes}
+                  className="flex items-center space-x-2 px-4 py-2 border border-purple-300 text-purple-700 rounded-lg hover:bg-purple-50 focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transition-colors duration-200"
+                >
+                  <span>Debug All QR</span>
+                </button>
+                
+                <button
+                  onClick={testSpecificQR}
+                  className="flex items-center space-x-2 px-4 py-2 border border-green-300 text-green-700 rounded-lg hover:bg-green-50 focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors duration-200"
+                >
+                  <span>Probar QR</span>
+                </button>
+                
+                <button
+                  onClick={cleanAndRegenerateQRs}
                   className="flex items-center space-x-2 px-4 py-2 border border-red-300 text-red-700 rounded-lg hover:bg-red-50 focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-colors duration-200"
                 >
-                  <span>Check 404 QR</span>
+                  <span>Limpiar QRs</span>
+                </button>
+                
+                <button
+                  onClick={checkProblematicQR}
+                  className="flex items-center space-x-2 px-4 py-2 border border-orange-300 text-orange-700 rounded-lg hover:bg-orange-50 focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 transition-colors duration-200"
+                >
+                  <span>Probar QR Problemático</span>
                 </button>
                 
                 <button

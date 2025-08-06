@@ -15,7 +15,11 @@ const QRGenerator: React.FC<QRGeneratorProps> = ({ value, size = 200, onDownload
   const [qrDataUrl, setQrDataUrl] = useState<string>('');
 
   useEffect(() => {
+    console.log('🔄 QRGenerator useEffect - Valor recibido:', value);
+    
     if (canvasRef.current && value) {
+      console.log('✅ Generando QR con valor:', value);
+      
       QRCodeLib.toCanvas(canvasRef.current, value, {
         width: size,
         margin: 2,
@@ -33,7 +37,12 @@ const QRGenerator: React.FC<QRGeneratorProps> = ({ value, size = 200, onDownload
           dark: '#1f2937',
           light: '#ffffff'
         }
-      }).then(url => setQrDataUrl(url));
+      }).then(url => {
+        console.log('✅ QR data URL generado:', url.substring(0, 50) + '...');
+        setQrDataUrl(url);
+      });
+    } else {
+      console.log('⚠️ No se puede generar QR - canvas o valor no disponible');
     }
   }, [value, size]);
 
