@@ -36,11 +36,41 @@ export const authService = {
 
 // QR Code functions
 export const qrCodeService = {
+  async checkDNIExists(dni: string): Promise<{ exists: boolean; error: any }> {
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user) {
+      return { exists: false, error: { message: 'User not authenticated' } };
+    }
+
+    const { data, error } = await supabase
+      .from('qr_codes')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('dni', dni)
+      .single();
+
+    if (error && error.code !== 'PGRST116') {
+      return { exists: false, error };
+    }
+
+    return { exists: !!data, error: null };
+  },
+
   async createQRCode(qrData: CreateQRCodeData): Promise<{ data: QRCode | null; error: any }> {
     const { data: { user } } = await supabase.auth.getUser();
     
     if (!user) {
       return { data: null, error: { message: 'User not authenticated' } };
+    }
+
+    // Check if DNI already exists for this user
+    const { exists, error: checkError } = await this.checkDNIExists(qrData.dni);
+    if (checkError) {
+      return { data: null, error: checkError };
+    }
+    if (exists) {
+      return { data: null, error: { message: 'Ya existe un código QR con este DNI' } };
     }
 
     const { data, error } = await supabase

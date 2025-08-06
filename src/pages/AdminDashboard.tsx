@@ -51,9 +51,10 @@ const AdminDashboard: React.FC = () => {
       await fetchQRCodes();
       setShowForm(false);
       setEditingQR(null);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving QR code:', error);
-      alert('Error al guardar el código QR');
+      const errorMessage = error?.message || 'Error al guardar el código QR';
+      alert(errorMessage);
     } finally {
       setSaving(false);
     }
@@ -82,6 +83,11 @@ const AdminDashboard: React.FC = () => {
     setEditingQR(null);
   };
 
+  const checkDNIExists = async (dni: string): Promise<boolean> => {
+    const { exists } = await qrCodeService.checkDNIExists(dni);
+    return exists;
+  };
+
   if (authLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -108,6 +114,7 @@ const AdminDashboard: React.FC = () => {
             onSave={handleSave}
             onCancel={handleCancel}
             loading={saving}
+            onCheckDNI={checkDNIExists}
           />
         ) : (
           <>

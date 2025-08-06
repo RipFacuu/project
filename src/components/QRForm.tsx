@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Save, X } from 'lucide-react';
 import { QRCode, CreateQRCodeData } from '../types';
 import QRGenerator from './QRGenerator';
@@ -8,9 +8,10 @@ interface QRFormProps {
   onSave: (data: CreateQRCodeData) => Promise<void>;
   onCancel: () => void;
   loading?: boolean;
+  onCheckDNI?: (dni: string) => Promise<boolean>;
 }
 
-const QRForm: React.FC<QRFormProps> = ({ qrCode, onSave, onCancel, loading }) => {
+const QRForm: React.FC<QRFormProps> = ({ qrCode, onSave, onCancel, loading, onCheckDNI }) => {
   const [formData, setFormData] = useState({
     first_name: qrCode?.first_name || '',
     last_name: qrCode?.last_name || '',
@@ -19,13 +20,32 @@ const QRForm: React.FC<QRFormProps> = ({ qrCode, onSave, onCancel, loading }) =>
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [validatingDNI, setValidatingDNI] = useState(false);
+  const dniTimeoutRef = useRef<NodeJS.Timeout>();
 
-  const validateForm = () => {
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (dniTimeoutRef.current) {
+        clearTimeout(dniTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const validateForm = async () => {
     const newErrors: Record<string, string> = {};
     
     if (!formData.first_name.trim()) newErrors.first_name = 'El nombre es requerido';
     if (!formData.last_name.trim()) newErrors.last_name = 'El apellido es requerido';
     if (!formData.dni.trim()) newErrors.dni = 'El DNI es requerido';
+    
+    // Check for DNI duplicates if not editing and onCheckDNI is provided
+    if (!qrCode && onCheckDNI && formData.dni.trim()) {
+      const exists = await onCheckDNI(formData.dni.trim());
+      if (exists) {
+        newErrors.dni = 'Ya existe un código QR con este DNI';
+      }
+    }
     
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -33,7 +53,7 @@ const QRForm: React.FC<QRFormProps> = ({ qrCode, onSave, onCancel, loading }) =>
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!validateForm()) return;
+    if (!(await validateForm())) return;
     
     await onSave(formData);
   };
@@ -42,6 +62,35 @@ const QRForm: React.FC<QRFormProps> = ({ qrCode, onSave, onCancel, loading }) =>
     setFormData(prev => ({ ...prev, [field]: value }));
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: '' }));
+    }
+  };
+
+  const handleDNIChange = async (value: string) => {
+    handleChange('dni', value);
+    
+    // Clear previous timeout
+    if (dniTimeoutRef.current) {
+      clearTimeout(dniTimeoutRef.current);
+    }
+    
+    // Clear DNI error when user starts typing
+    if (errors.dni) {
+      setErrors(prev => ({ ...prev, dni: '' }));
+    }
+    
+    // Check for DNI duplicates in real-time if not editing
+    if (!qrCode && onCheckDNI && value.trim() && value.trim().length >= 3) {
+      setValidatingDNI(true);
+      
+      dniTimeoutRef.current = setTimeout(async () => {
+        const exists = await onCheckDNI(value.trim());
+        if (exists) {
+          setErrors(prev => ({ ...prev, dni: 'Ya existe un código QR con este DNI' }));
+        }
+        setValidatingDNI(false);
+      }, 500); // 500ms debounce
+    } else {
+      setValidatingDNI(false);
     }
   };
 
@@ -101,13 +150,16 @@ const QRForm: React.FC<QRFormProps> = ({ qrCode, onSave, onCancel, loading }) =>
               type="text"
               id="dni"
               value={formData.dni}
-              onChange={(e) => handleChange('dni', e.target.value)}
+              onChange={(e) => handleDNIChange(e.target.value)}
               className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent ${
                 errors.dni ? 'border-red-500' : 'border-gray-300'
               }`}
               placeholder="Ingresa el DNI"
             />
-            {errors.dni && <p className="text-red-500 text-sm mt-1">{errors.dni}</p>}
+            <div className="flex items-center space-x-2">
+              {errors.dni && <p className="text-red-500 text-sm mt-1">{errors.dni}</p>}
+              {validatingDNI && <p className="text-blue-500 text-sm mt-1">Verificando DNI...</p>}
+            </div>
           </div>
           
           <div>
