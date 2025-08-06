@@ -1,6 +1,12 @@
 import { supabase } from './supabase';
 import { QRCode, CreateQRCodeData, LoginData, RegisterData } from '../types';
 
+type DatabaseError = {
+  message: string;
+  code?: string;
+  details?: string;
+};
+
 // Auth functions
 export const authService = {
   async login({ email, password }: LoginData) {
@@ -36,7 +42,7 @@ export const authService = {
 
 // QR Code functions
 export const qrCodeService = {
-  async checkDNIExists(dni: string): Promise<{ exists: boolean; error: any }> {
+  async checkDNIExists(dni: string): Promise<{ exists: boolean; error: DatabaseError | null }> {
     const { data: { user } } = await supabase.auth.getUser();
     
     if (!user) {
@@ -141,6 +147,34 @@ export const qrCodeService = {
       .eq('user_id', user.id)
       .select()
       .single();
+
+    return { data, error };
+  },
+
+  // Función de depuración para verificar si un QR existe
+  async debugQRCode(id: string): Promise<{ exists: boolean; data: QRCode | null; error: any }> {
+    const { data, error } = await supabase
+      .from('qr_codes')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return { exists: false, data: null, error: null };
+      }
+      return { exists: false, data: null, error };
+    }
+
+    return { exists: true, data, error: null };
+  },
+
+  // Función para obtener todos los QRs (solo para administración)
+  async getAllQRCodes(): Promise<{ data: QRCode[] | null; error: any }> {
+    const { data, error } = await supabase
+      .from('qr_codes')
+      .select('*')
+      .order('created_at', { ascending: false });
 
     return { data, error };
   }

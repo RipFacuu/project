@@ -55,9 +55,9 @@ const AdminDashboard: React.FC = () => {
       setShowForm(false);
       setEditingQR(null);
       setSavedQR(null);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error saving QR code:', error);
-      const errorMessage = error?.message || 'Error al guardar el código QR';
+      const errorMessage = error instanceof Error ? error.message : 'Error al guardar el código QR';
       alert(errorMessage);
     } finally {
       setSaving(false);
@@ -92,6 +92,41 @@ const AdminDashboard: React.FC = () => {
     const { exists } = await qrCodeService.checkDNIExists(dni);
     return exists;
   };
+
+  // Función de depuración para mostrar información de los QR codes
+  const debugQRCodes = () => {
+    console.log('QR Codes en la base de datos:');
+    qrCodes.forEach((qr, index) => {
+      console.log(`${index + 1}. ID: ${qr.id}`);
+      console.log(`   Nombre: ${qr.first_name} ${qr.last_name}`);
+      console.log(`   DNI: ${qr.dni}`);
+      console.log(`   URL: ${window.location.origin}/scan/${qr.id}`);
+      console.log('---');
+    });
+  };
+
+  // Verificar el QR problemático específico
+  const checkProblematicQR = async () => {
+    const problematicId = 'gru1::ndmlz-1754504096000-39cac0f4e72a';
+    console.log(`Verificando QR problemático: ${problematicId}`);
+    
+    const { exists, data } = await qrCodeService.debugQRCode(problematicId);
+    
+    if (exists && data) {
+      console.log('✅ QR encontrado:', data);
+      alert(`QR encontrado: ${data.first_name} ${data.last_name} (DNI: ${data.dni})`);
+    } else {
+      console.log('❌ QR no encontrado');
+      alert('QR no encontrado en la base de datos. Este QR puede haber sido eliminado o nunca existió.');
+    }
+  };
+
+  // Ejecutar depuración cuando se cargan los QR codes
+  useEffect(() => {
+    if (qrCodes.length > 0) {
+      debugQRCodes();
+    }
+  }, [qrCodes]);
 
   if (authLoading) {
     return (
@@ -138,6 +173,20 @@ const AdminDashboard: React.FC = () => {
                 >
                   <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
                   <span>Actualizar</span>
+                </button>
+                
+                <button
+                  onClick={debugQRCodes}
+                  className="flex items-center space-x-2 px-4 py-2 border border-blue-300 text-blue-700 rounded-lg hover:bg-blue-50 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors duration-200"
+                >
+                  <span>Debug QR</span>
+                </button>
+                
+                <button
+                  onClick={checkProblematicQR}
+                  className="flex items-center space-x-2 px-4 py-2 border border-red-300 text-red-700 rounded-lg hover:bg-red-50 focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-colors duration-200"
+                >
+                  <span>Check 404 QR</span>
                 </button>
                 
                 <button
