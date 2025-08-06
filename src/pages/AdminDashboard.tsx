@@ -393,6 +393,47 @@ Muestra de IDs: ${info.sampleIds.slice(0, 3).join(', ')}
     console.log('🗑️ === FIN CLEARING ===');
   };
 
+  // Probar URLs generadas
+  const testGeneratedUrls = () => {
+    console.log('🧪 === TESTING GENERATED URLS ===');
+    
+    const currentUrl = window.location.href;
+    const origin = window.location.origin;
+    const pathname = window.location.pathname;
+    
+    console.log('🌐 URL actual:', currentUrl);
+    console.log('🌐 Origin:', origin);
+    console.log('📁 Pathname:', pathname);
+    
+    // Probar diferentes URLs
+    const testUrls = [
+      `${origin}/scan/test-123`,
+      `${origin}/admin`,
+      `${origin}/login`,
+      `${origin}/`
+    ];
+    
+    console.log('🧪 URLs de prueba:');
+    testUrls.forEach((url, index) => {
+      console.log(`${index + 1}. ${url}`);
+    });
+    
+    // Verificar si estamos en producción
+    const isProduction = !origin.includes('localhost') && !origin.includes('127.0.0.1');
+    console.log('🏭 Entorno:', isProduction ? 'Producción' : 'Desarrollo');
+    
+    alert(`
+Información de URLs:
+🌐 Origin: ${origin}
+📁 Pathname: ${pathname}
+🏭 Entorno: ${isProduction ? 'Producción' : 'Desarrollo'}
+
+URLs de prueba generadas. Revisa la consola para más detalles.
+    `.trim());
+    
+    console.log('🧪 === FIN TESTING URLS ===');
+  };
+
   // Regenerar QRs para producción
   const regenerateQRsForProduction = async () => {
     console.log('🔄 === REGENERATING QRS FOR PRODUCTION ===');
@@ -590,6 +631,13 @@ Muestra de IDs: ${info.sampleIds.slice(0, 3).join(', ')}
                   className="flex items-center space-x-2 px-4 py-2 border border-red-300 text-red-700 rounded-lg hover:bg-red-50 focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-colors duration-200"
                 >
                   <span>Limpiar Base de Datos</span>
+                </button>
+                
+                <button
+                  onClick={testGeneratedUrls}
+                  className="flex items-center space-x-2 px-4 py-2 border border-yellow-300 text-yellow-700 rounded-lg hover:bg-yellow-50 focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 transition-colors duration-200"
+                >
+                  <span>Probar URLs Generadas</span>
                 </button>
                 
                 <button

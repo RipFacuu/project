@@ -108,16 +108,15 @@ const QRForm: React.FC<QRFormProps> = ({ qrCode, onSave, onCancel, loading, onCh
     
     // Obtener la URL base correcta (funciona en desarrollo y producción)
     const getBaseUrl = () => {
-      // En desarrollo
-      if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-        return window.location.origin;
-      }
-      // En producción (Vercel, etc.)
-      return window.location.origin;
+      // Siempre usar window.location.origin para obtener la URL actual
+      const origin = window.location.origin;
+      console.log('🌐 URL actual:', window.location.href);
+      console.log('🌐 Origin:', origin);
+      return origin;
     };
     
     const baseUrl = getBaseUrl();
-    console.log('🌐 Base URL:', baseUrl);
+    console.log('🌐 Base URL para QR:', baseUrl);
     
     // Si es un QR existente, usar el ID real
     if (qrCode?.id) {
