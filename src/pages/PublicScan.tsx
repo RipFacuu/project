@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { QrCode, Camera, ArrowLeft, Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import QRScanner from '../components/QRScanner';
 
 const PublicScan: React.FC = () => {
   const [qrId, setQrId] = useState('');
-  const [isScanning, setIsScanning] = useState(false);
+  const [showScanner, setShowScanner] = useState(false);
   const navigate = useNavigate();
 
   const handleScan = () => {
@@ -17,6 +18,25 @@ const PublicScan: React.FC = () => {
     if (e.key === 'Enter') {
       handleScan();
     }
+  };
+
+  const handleCameraScan = (result: string) => {
+    // Extraer el ID del QR de la URL si es necesario
+    // Asumiendo que el QR contiene una URL como: http://localhost:5174/scan/123
+    const urlParts = result.split('/');
+    const qrIdFromUrl = urlParts[urlParts.length - 1];
+    
+    if (qrIdFromUrl) {
+      navigate(`/scan/${qrIdFromUrl}`);
+    } else {
+      // Si no es una URL, usar el resultado directamente
+      navigate(`/scan/${result}`);
+    }
+  };
+
+  const handleCameraError = (error: string) => {
+    console.error('Error al escanear:', error);
+    // Puedes mostrar un mensaje de error aquí si lo deseas
   };
 
   return (
@@ -100,13 +120,13 @@ const PublicScan: React.FC = () => {
               Escanear con Cámara
             </h3>
             <div className="bg-gray-50 rounded-lg p-8 border-2 border-dashed border-gray-300">
-              <Camera className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+              <Camera className="w-12 h-12 text-orange-400 mx-auto mb-4" />
               <p className="text-gray-600 mb-4">
-                Función de escaneo con cámara próximamente
+                Escanea códigos QR directamente con tu cámara
               </p>
               <button
-                disabled
-                className="px-6 py-3 bg-gray-300 text-gray-500 rounded-lg cursor-not-allowed font-medium"
+                onClick={() => setShowScanner(true)}
+                className="px-6 py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors duration-200 font-medium"
               >
                 Activar Cámara
               </button>
@@ -147,6 +167,14 @@ const PublicScan: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* QR Scanner Modal */}
+      {showScanner && (
+        <QRScanner
+          onScan={handleCameraScan}
+          onClose={() => setShowScanner(false)}
+        />
+      )}
     </div>
   );
 };
