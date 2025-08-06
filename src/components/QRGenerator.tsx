@@ -89,6 +89,22 @@ const QRGenerator: React.FC<QRGeneratorProps> = ({ value, size = 200, onDownload
 
   if (!value) return null;
 
+  // Si el valor es un mensaje de vista previa, mostrar un placeholder
+  if (value.includes('Vista previa')) {
+    return (
+      <div className="flex flex-col items-center space-y-4">
+        <div className="bg-gray-100 p-8 rounded-lg border-2 border-dashed border-gray-300">
+          <div className="text-center">
+            <div className="w-32 h-32 bg-gray-200 rounded-lg mx-auto mb-4 flex items-center justify-center">
+              <span className="text-gray-500 text-xs text-center">QR Preview</span>
+            </div>
+            <p className="text-gray-600 text-sm">{value}</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col items-center space-y-4">
       <div ref={containerRef} className="bg-white p-4 rounded-lg shadow-sm">

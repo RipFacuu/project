@@ -15,6 +15,7 @@ const AdminDashboard: React.FC = () => {
   const [showForm, setShowForm] = useState(false);
   const [editingQR, setEditingQR] = useState<QRCode | null>(null);
   const [saving, setSaving] = useState(false);
+  const [savedQR, setSavedQR] = useState<QRCode | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -42,15 +43,18 @@ const AdminDashboard: React.FC = () => {
         // Update existing QR
         const { error } = await qrCodeService.updateQRCode(editingQR.id, formData);
         if (error) throw error;
+        setSavedQR(null); // Clear saved QR for updates
       } else {
         // Create new QR
-        const { error } = await qrCodeService.createQRCode(formData);
+        const { data, error } = await qrCodeService.createQRCode(formData);
         if (error) throw error;
+        setSavedQR(data); // Store the newly created QR
       }
 
       await fetchQRCodes();
       setShowForm(false);
       setEditingQR(null);
+      setSavedQR(null);
     } catch (error: any) {
       console.error('Error saving QR code:', error);
       const errorMessage = error?.message || 'Error al guardar el código QR';
@@ -81,6 +85,7 @@ const AdminDashboard: React.FC = () => {
   const handleCancel = () => {
     setShowForm(false);
     setEditingQR(null);
+    setSavedQR(null);
   };
 
   const checkDNIExists = async (dni: string): Promise<boolean> => {
@@ -115,6 +120,7 @@ const AdminDashboard: React.FC = () => {
             onCancel={handleCancel}
             loading={saving}
             onCheckDNI={checkDNIExists}
+            savedQR={savedQR}
           />
         ) : (
           <>

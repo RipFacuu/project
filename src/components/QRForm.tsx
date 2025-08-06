@@ -9,9 +9,10 @@ interface QRFormProps {
   onCancel: () => void;
   loading?: boolean;
   onCheckDNI?: (dni: string) => Promise<boolean>;
+  savedQR?: QRCode | null;
 }
 
-const QRForm: React.FC<QRFormProps> = ({ qrCode, onSave, onCancel, loading, onCheckDNI }) => {
+const QRForm: React.FC<QRFormProps> = ({ qrCode, onSave, onCancel, loading, onCheckDNI, savedQR }) => {
   const [formData, setFormData] = useState({
     first_name: qrCode?.first_name || '',
     last_name: qrCode?.last_name || '',
@@ -96,8 +97,19 @@ const QRForm: React.FC<QRFormProps> = ({ qrCode, onSave, onCancel, loading, onCh
 
   const generateQRValue = () => {
     if (!qrCode?.id && (!formData.first_name || !formData.last_name)) return '';
-    const id = qrCode?.id || 'preview';
-    return `${window.location.origin}/scan/${id}`;
+    
+    // Si es un QR existente, usar el ID real
+    if (qrCode?.id) {
+      return `${window.location.origin}/scan/${qrCode.id}`;
+    }
+    
+    // Si hay un QR guardado recientemente, usar su ID
+    if (savedQR?.id) {
+      return `${window.location.origin}/scan/${savedQR.id}`;
+    }
+    
+    // Si es un nuevo QR, mostrar un mensaje de vista previa
+    return 'Vista previa - El QR se generará después de guardar';
   };
 
   return (
@@ -176,12 +188,24 @@ const QRForm: React.FC<QRFormProps> = ({ qrCode, onSave, onCancel, loading, onCh
             />
           </div>
 
-          {(qrCode || (formData.first_name && formData.last_name)) && (
+          {(qrCode || savedQR || (formData.first_name && formData.last_name)) && (
             <div className="mt-6">
-              <h3 className="text-lg font-semibold text-gray-800 mb-4">Vista previa del QR</h3>
+              <h3 className="text-lg font-semibold text-gray-800 mb-4">
+                {savedQR ? 'Código QR Generado' : 'Vista previa del QR'}
+              </h3>
               <div className="flex justify-center">
                 <QRGenerator value={generateQRValue()} />
               </div>
+              {savedQR && (
+                <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+                  <p className="text-green-800 text-sm text-center">
+                    ✅ Código QR creado exitosamente. Ya puedes escanearlo o compartirlo.
+                  </p>
+                  <p className="text-green-700 text-xs text-center mt-2">
+                    URL: {window.location.origin}/scan/{savedQR.id}
+                  </p>
+                </div>
+              )}
             </div>
           )}
           
