@@ -1,48 +1,67 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Html5QrcodeScanner } from 'html5-qrcode';
+import { Html5Qrcode } from 'html5-qrcode';
 import { X, Camera, AlertCircle, Shield } from 'lucide-react';
 
-interface QRScannerProps {
+interface SimpleQRScannerProps {
   onScan: (result: string) => void;
   onClose: () => void;
 }
 
-const QRScanner: React.FC<QRScannerProps> = ({ onScan, onClose }) => {
-  const scannerRef = useRef<Html5QrcodeScanner | null>(null);
+const SimpleQRScanner: React.FC<SimpleQRScannerProps> = ({ onScan, onClose }) => {
+  const scannerRef = useRef<Html5Qrcode | null>(null);
   const [isScanning, setIsScanning] = useState(false);
   const [error, setError] = useState('');
   const [permissionStatus, setPermissionStatus] = useState<'requesting' | 'granted' | 'denied' | 'unknown'>('unknown');
 
   useEffect(() => {
-    // Verificar permisos de cámara primero
-    const checkCameraPermission = async () => {
+    const startScanner = async () => {
       try {
         setPermissionStatus('requesting');
-        
-        // Verificar si el navegador soporta getUserMedia
-        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-          setError('Tu navegador no soporta acceso a la cámara');
-          setPermissionStatus('denied');
-          return;
-        }
+        setError('');
 
-        // Solicitar permisos de cámara
-        const stream = await navigator.mediaDevices.getUserMedia({ 
-          video: { 
-            facingMode: 'environment' // Preferir cámara trasera en móviles
-          } 
-        });
+        // Crear instancia del escáner
+        scannerRef.current = new Html5Qrcode("qr-reader");
+
+        // Obtener lista de cámaras
+        const devices = await Html5Qrcode.getCameras();
         
-        // Detener el stream inmediatamente después de verificar permisos
-        stream.getTracks().forEach(track => track.stop());
-        
-        setPermissionStatus('granted');
-        initScanner();
+        if (devices && devices.length > 0) {
+          // Usar la primera cámara disponible (preferiblemente la trasera)
+          const cameraId = devices[0].id;
+          
+          await scannerRef.current.start(
+            cameraId,
+            {
+              fps: 30,
+              qrbox: { width: 300, height: 300 },
+              aspectRatio: 1.0,
+            },
+            (decodedText) => {
+              console.log('QR detectado:', decodedText);
+              stopScanner();
+              onScan(decodedText);
+            },
+            (errorMessage) => {
+              // Solo mostrar errores importantes
+              if (errorMessage.includes('NotFound') || 
+                  errorMessage.includes('No QR code found')) {
+                return;
+              }
+              console.log('Error de escaneo:', errorMessage);
+            }
+          );
+
+          setPermissionStatus('granted');
+          setIsScanning(true);
+        } else {
+          setError('No se encontró ninguna cámara');
+          setPermissionStatus('denied');
+        }
       } catch (err: any) {
-        console.error('Error al solicitar permisos de cámara:', err);
+        console.error('Error al iniciar escáner:', err);
         
         if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-          setError('Permiso de cámara denegado. Por favor, permite el acceso a la cámara en tu navegador.');
+          setError('Permiso de cámara denegado. Por favor, permite el acceso a la cámara.');
           setPermissionStatus('denied');
         } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
           setError('No se encontró ninguna cámara. Verifica que tu dispositivo tenga cámara.');
@@ -54,81 +73,42 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScan, onClose }) => {
       }
     };
 
-    const initScanner = () => {
-      if (!scannerRef.current) {
-        scannerRef.current = new Html5QrcodeScanner(
-          "qr-reader",
-          {
-            fps: 30,
-            qrbox: { width: 300, height: 300 },
-            aspectRatio: 1.0,
-            disableFlip: false,
-            rememberLastUsedCamera: true,
-            supportedScanTypes: [0, 1],
-          },
-          false
-        );
-
-        scannerRef.current.render(
-          (decodedText) => {
-            console.log('QR detectado:', decodedText);
-            if (scannerRef.current) {
-              scannerRef.current.clear();
-              setIsScanning(false);
-            }
-            onScan(decodedText);
-          },
-          (errorMessage) => {
-            if (errorMessage.includes('NotFound') || 
-                errorMessage.includes('No QR code found') ||
-                errorMessage.includes('QR code not found')) {
-              return;
-            }
-            if (errorMessage.includes('Permission denied')) {
-              setError('Permiso de cámara denegado. Por favor, permite el acceso a la cámara.');
-            } else if (errorMessage.includes('No cameras found')) {
-              setError('No se encontró ninguna cámara. Verifica que tu dispositivo tenga cámara.');
-            } else {
-              setError(`Error: ${errorMessage}`);
-            }
-          }
-        );
-
-        setIsScanning(true);
-      }
-    };
-
-    // Iniciar el proceso de verificación de permisos
-    checkCameraPermission();
+    startScanner();
 
     return () => {
-      if (scannerRef.current) {
-        scannerRef.current.clear();
-      }
+      stopScanner();
     };
   }, [onScan]);
 
-  const handleClose = () => {
-    if (scannerRef.current) {
-      scannerRef.current.clear();
+  const stopScanner = async () => {
+    if (scannerRef.current && isScanning) {
+      try {
+        await scannerRef.current.stop();
+        setIsScanning(false);
+      } catch (err) {
+        console.error('Error al detener escáner:', err);
+      }
     }
+  };
+
+  const handleClose = async () => {
+    await stopScanner();
     onClose();
   };
 
-  const retryPermission = async () => {
+  const retryPermission = () => {
     setError('');
     setPermissionStatus('unknown');
+    setIsScanning(false);
     
-    // Forzar la recarga del componente
+    // Reiniciar el escáner
     if (scannerRef.current) {
       scannerRef.current.clear();
       scannerRef.current = null;
     }
     
-    // Esperar un momento y reintentar
-    setTimeout(() => {
-      window.location.reload();
-    }, 100);
+    // Recargar la página para reiniciar completamente
+    window.location.reload();
   };
 
   return (
@@ -156,7 +136,7 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScan, onClose }) => {
             <div className="text-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500 mx-auto mb-4"></div>
               <h4 className="text-lg font-medium text-gray-900 mb-2">
-                Solicitando acceso a la cámara...
+                Iniciando cámara...
               </h4>
               <p className="text-sm text-gray-600">
                 Por favor, permite el acceso a la cámara cuando tu navegador lo solicite
@@ -173,19 +153,17 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScan, onClose }) => {
               <p className="text-sm text-gray-600 mb-4">
                 {error}
               </p>
-              <button
-                onClick={retryPermission}
-                className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors duration-200"
-              >
-                Reintentar
-              </button>
-            </div>
-          )}
-
-          {error && permissionStatus !== 'denied' && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center space-x-2">
-              <AlertCircle className="w-4 h-4 text-red-500" />
-              <span className="text-sm text-red-700">{error}</span>
+              <div className="space-y-2">
+                <button
+                  onClick={retryPermission}
+                  className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors duration-200"
+                >
+                  Reintentar
+                </button>
+                <p className="text-xs text-gray-500">
+                  Si el problema persiste, verifica los permisos de cámara en tu navegador
+                </p>
+              </div>
             </div>
           )}
 
@@ -225,4 +203,4 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScan, onClose }) => {
   );
 };
 
-export default QRScanner; 
+export default SimpleQRScanner; 

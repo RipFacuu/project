@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { User, FileText, CreditCard, Calendar, AlertCircle, ArrowLeft, QrCode } from 'lucide-react';
+import { User, FileText, CreditCard, Calendar, AlertCircle, ArrowLeft, QrCode, Loader } from 'lucide-react';
 import { qrCodeService } from '../lib/database';
 import { QRCode } from '../types';
 
@@ -19,6 +19,7 @@ const ScanView: React.FC = () => {
 
   const fetchQRCode = async () => {
     try {
+      setLoading(true);
       const { data, error } = await qrCodeService.getQRCodeById(id!);
 
       if (error) {
@@ -53,13 +54,14 @@ const ScanView: React.FC = () => {
       <div className="min-h-screen bg-gradient-to-br from-orange-50 to-orange-100">
         <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
-            <div className="animate-pulse space-y-4">
-              <div className="h-8 bg-gray-200 rounded w-1/2"></div>
-              <div className="space-y-2">
-                <div className="h-4 bg-gray-200 rounded"></div>
-                <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-                <div className="h-4 bg-gray-200 rounded w-1/2"></div>
-              </div>
+            <div className="text-center">
+              <Loader className="w-8 h-8 text-orange-500 mx-auto mb-4 animate-spin" />
+              <h2 className="text-xl font-semibold text-gray-900 mb-2">
+                Cargando información...
+              </h2>
+              <p className="text-gray-600">
+                Buscando datos del código QR
+              </p>
             </div>
           </div>
         </div>
