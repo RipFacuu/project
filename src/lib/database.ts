@@ -177,5 +177,59 @@ export const qrCodeService = {
       .order('created_at', { ascending: false });
 
     return { data, error };
+  },
+
+  // Función para verificar la estructura de la base de datos
+  async checkDatabaseStructure(): Promise<{ valid: boolean; info: any; error: any }> {
+    try {
+      console.log('🔍 === CHECKING DATABASE STRUCTURE ===');
+      
+      // Verificar si la tabla existe
+      const { data: tableInfo, error: tableError } = await supabase
+        .from('qr_codes')
+        .select('id')
+        .limit(1);
+      
+      if (tableError) {
+        console.error('❌ Error accediendo a la tabla qr_codes:', tableError);
+        return { valid: false, info: null, error: tableError };
+      }
+      
+      console.log('✅ Tabla qr_codes accesible');
+      
+      // Obtener información sobre los IDs
+      const { data: allQRs, error: qrError } = await supabase
+        .from('qr_codes')
+        .select('id, created_at')
+        .order('created_at', { ascending: false })
+        .limit(10);
+      
+      if (qrError) {
+        console.error('❌ Error obteniendo QRs:', qrError);
+        return { valid: false, info: null, error: qrError };
+      }
+      
+      const idPatterns = allQRs?.map(qr => ({
+        id: qr.id,
+        pattern: qr.id.includes('::') ? 'supabase_uuid' : 'simple_uuid',
+        length: qr.id.length
+      })) || [];
+      
+      console.log('📊 Patrones de ID encontrados:', idPatterns);
+      
+      return { 
+        valid: true, 
+        info: { 
+          totalQRs: allQRs?.length || 0,
+          idPatterns,
+          sampleIds: allQRs?.map(qr => qr.id) || []
+        }, 
+        error: null 
+      };
+      
+    } catch (error) {
+      console.error('❌ Error en checkDatabaseStructure:', error);
+      return { valid: false, info: null, error };
+    }
   }
 }; 

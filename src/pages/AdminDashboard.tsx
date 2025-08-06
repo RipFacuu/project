@@ -281,6 +281,118 @@ const AdminDashboard: React.FC = () => {
     console.log('🔍 === FIN CHECKING ===');
   };
 
+  // Verificar el QR problemático de producción
+  const checkProductionProblematicQR = async () => {
+    const problematicId = '5a87d56-e0fe-4b9d-b10f-e8d4c984b1bd';
+    console.log('🔍 === CHECKING PRODUCTION PROBLEMATIC QR ===');
+    console.log('🆔 ID problemático de producción:', problematicId);
+    
+    const { exists, data } = await qrCodeService.debugQRCode(problematicId);
+    
+    if (exists && data) {
+      console.log('✅ QR problemático de producción encontrado:', data);
+      alert(`QR encontrado: ${data.first_name} ${data.last_name} (DNI: ${data.dni})`);
+    } else {
+      console.log('❌ QR problemático de producción NO encontrado en la base de datos');
+      alert('QR problemático de producción NO encontrado en la base de datos. Este QR debe ser regenerado.');
+    }
+    
+    console.log('🔍 === FIN CHECKING PRODUCTION ===');
+  };
+
+  // Verificar estructura de la base de datos
+  const checkDatabaseStructure = async () => {
+    console.log('🔍 === CHECKING DATABASE STRUCTURE ===');
+    
+    try {
+      const { valid, info, error } = await qrCodeService.checkDatabaseStructure();
+      
+      if (error) {
+        console.error('❌ Error verificando estructura de BD:', error);
+        alert('Error verificando estructura de base de datos');
+        return;
+      }
+      
+      if (!valid) {
+        console.error('❌ Estructura de BD inválida');
+        alert('Estructura de base de datos inválida');
+        return;
+      }
+      
+      console.log('✅ Estructura de BD válida');
+      console.log('📊 Información de BD:', info);
+      
+      // Mostrar información en alert
+      const message = `
+Estructura de BD válida
+Total QRs: ${info.totalQRs}
+Patrones de ID: ${info.idPatterns.length}
+Muestra de IDs: ${info.sampleIds.slice(0, 3).join(', ')}
+      `.trim();
+      
+      alert(message);
+      
+    } catch (error) {
+      console.error('❌ Error en checkDatabaseStructure:', error);
+    }
+    
+    console.log('🔍 === FIN CHECKING DATABASE STRUCTURE ===');
+  };
+
+  // Limpiar completamente la base de datos (CUIDADO: elimina todos los QRs)
+  const clearAllQRCodes = async () => {
+    console.log('🗑️ === CLEARING ALL QR CODES ===');
+    
+    const confirmClear = confirm(
+      '⚠️ ADVERTENCIA: Esto eliminará TODOS los códigos QR de la base de datos.\n\n' +
+      '¿Estás seguro de que quieres continuar? Esta acción no se puede deshacer.'
+    );
+    
+    if (!confirmClear) {
+      console.log('❌ Operación cancelada por el usuario');
+      return;
+    }
+    
+    try {
+      // Obtener todos los QRs del usuario actual
+      const { data: userQRs, error } = await qrCodeService.getUserQRCodes();
+      
+      if (error) {
+        console.error('❌ Error obteniendo QRs del usuario:', error);
+        alert('Error obteniendo QRs del usuario');
+        return;
+      }
+      
+      if (!userQRs || userQRs.length === 0) {
+        console.log('⚠️ No hay QRs para eliminar');
+        alert('No hay QRs para eliminar');
+        return;
+      }
+      
+      console.log(`🗑️ Eliminando ${userQRs.length} QRs...`);
+      
+      let deletedCount = 0;
+      for (const qr of userQRs) {
+        try {
+          await qrCodeService.deleteQRCode(qr.id);
+          console.log(`🗑️ Eliminado QR: ${qr.first_name} ${qr.last_name} (${qr.id})`);
+          deletedCount++;
+        } catch (deleteError) {
+          console.error(`❌ Error eliminando QR ${qr.id}:`, deleteError);
+        }
+      }
+      
+      await fetchQRCodes();
+      alert(`✅ Eliminados ${deletedCount} QRs. La base de datos está limpia.`);
+      
+    } catch (error) {
+      console.error('❌ Error en clearAllQRCodes:', error);
+      alert('Error eliminando QRs');
+    }
+    
+    console.log('🗑️ === FIN CLEARING ===');
+  };
+
   // Regenerar QRs para producción
   const regenerateQRsForProduction = async () => {
     console.log('🔄 === REGENERATING QRS FOR PRODUCTION ===');
@@ -457,6 +569,27 @@ const AdminDashboard: React.FC = () => {
                   className="flex items-center space-x-2 px-4 py-2 border border-orange-300 text-orange-700 rounded-lg hover:bg-orange-50 focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 transition-colors duration-200"
                 >
                   <span>Probar QR Problemático</span>
+                </button>
+                
+                <button
+                  onClick={checkProductionProblematicQR}
+                  className="flex items-center space-x-2 px-4 py-2 border border-purple-300 text-purple-700 rounded-lg hover:bg-purple-50 focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transition-colors duration-200"
+                >
+                  <span>Probar QR Problemático de Producción</span>
+                </button>
+                
+                <button
+                  onClick={checkDatabaseStructure}
+                  className="flex items-center space-x-2 px-4 py-2 border border-teal-300 text-teal-700 rounded-lg hover:bg-teal-50 focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 transition-colors duration-200"
+                >
+                  <span>Verificar Estructura BD</span>
+                </button>
+                
+                <button
+                  onClick={clearAllQRCodes}
+                  className="flex items-center space-x-2 px-4 py-2 border border-red-300 text-red-700 rounded-lg hover:bg-red-50 focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-colors duration-200"
+                >
+                  <span>Limpiar Base de Datos</span>
                 </button>
                 
                 <button
