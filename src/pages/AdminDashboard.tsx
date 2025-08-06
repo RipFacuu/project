@@ -281,12 +281,89 @@ const AdminDashboard: React.FC = () => {
     console.log('🔍 === FIN CHECKING ===');
   };
 
+  // Regenerar QRs para producción
+  const regenerateQRsForProduction = async () => {
+    console.log('🔄 === REGENERATING QRS FOR PRODUCTION ===');
+    
+    try {
+      // Obtener todos los QRs del usuario actual
+      const { data: userQRs, error } = await qrCodeService.getUserQRCodes();
+      
+      if (error) {
+        console.error('❌ Error obteniendo QRs del usuario:', error);
+        return;
+      }
+      
+      if (!userQRs || userQRs.length === 0) {
+        console.log('⚠️ No hay QRs para regenerar');
+        alert('No hay QRs para regenerar');
+        return;
+      }
+      
+      console.log(`📊 Total de QRs del usuario: ${userQRs.length}`);
+      
+      const shouldRegenerate = confirm(
+        `Se encontraron ${userQRs.length} QRs. ` +
+        `¿Deseas regenerarlos para que funcionen correctamente en producción? ` +
+        `Esto creará nuevos QRs con las URLs correctas.`
+      );
+      
+      if (shouldRegenerate) {
+        for (const qr of userQRs) {
+          console.log(`🔄 Regenerando QR: ${qr.first_name} ${qr.last_name}`);
+          
+          // Crear nuevo QR con los mismos datos
+          const newQRData = {
+            first_name: qr.first_name,
+            last_name: qr.last_name,
+            dni: qr.dni,
+            description: qr.description
+          };
+          
+          const { data: newQR, error: createError } = await qrCodeService.createQRCode(newQRData);
+          
+          if (createError) {
+            console.error(`❌ Error creando nuevo QR para ${qr.first_name}:`, createError);
+          } else {
+            console.log(`✅ Nuevo QR creado: ${newQR?.id}`);
+            
+            // Eliminar el QR antiguo
+            await qrCodeService.deleteQRCode(qr.id);
+            console.log(`🗑️ QR antiguo eliminado: ${qr.id}`);
+          }
+        }
+        
+        await fetchQRCodes();
+        alert('QRs regenerados exitosamente. Los nuevos QRs funcionarán correctamente en producción.');
+      }
+      
+    } catch (error) {
+      console.error('❌ Error en regenerateQRsForProduction:', error);
+    }
+    
+    console.log('🔄 === FIN REGENERATING ===');
+  };
+
   // Ejecutar depuración cuando se cargan los QR codes
   useEffect(() => {
     if (qrCodes.length > 0) {
       debugQRCodes();
     }
   }, [qrCodes]);
+
+  // Mostrar información del entorno
+  const getEnvironmentInfo = () => {
+    const isDevelopment = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    const baseUrl = window.location.origin;
+    
+    return {
+      environment: isDevelopment ? 'Desarrollo' : 'Producción',
+      baseUrl,
+      isDevelopment
+    };
+  };
+
+  const envInfo = getEnvironmentInfo();
 
   if (authLoading) {
     return (
@@ -323,6 +400,18 @@ const AdminDashboard: React.FC = () => {
               <div>
                 <h1 className="text-2xl font-bold text-gray-900">Códigos QR</h1>
                 <p className="text-gray-600">Gestiona todos tus códigos QR desde aquí</p>
+                <div className="mt-2 flex items-center space-x-2">
+                  <span className={`px-2 py-1 text-xs rounded-full ${
+                    envInfo.isDevelopment 
+                      ? 'bg-blue-100 text-blue-800' 
+                      : 'bg-green-100 text-green-800'
+                  }`}>
+                    {envInfo.environment}
+                  </span>
+                  <span className="text-xs text-gray-500">
+                    Base URL: {envInfo.baseUrl}
+                  </span>
+                </div>
               </div>
               
               <div className="flex space-x-3">
@@ -368,6 +457,13 @@ const AdminDashboard: React.FC = () => {
                   className="flex items-center space-x-2 px-4 py-2 border border-orange-300 text-orange-700 rounded-lg hover:bg-orange-50 focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 transition-colors duration-200"
                 >
                   <span>Probar QR Problemático</span>
+                </button>
+                
+                <button
+                  onClick={regenerateQRsForProduction}
+                  className="flex items-center space-x-2 px-4 py-2 border border-yellow-300 text-yellow-700 rounded-lg hover:bg-yellow-50 focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 transition-colors duration-200"
+                >
+                  <span>Regenerar QRs para Producción</span>
                 </button>
                 
                 <button

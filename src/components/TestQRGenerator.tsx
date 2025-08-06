@@ -9,6 +9,8 @@ const TestQRGenerator: React.FC = () => {
   const generateQR = async () => {
     try {
       const url = `${window.location.origin}/scan/${qrId}`;
+      console.log('🧪 Generando QR de prueba con URL:', url);
+      
       const dataUrl = await QRCodeLib.toDataURL(url, {
         width: 300,
         margin: 2,
@@ -25,6 +27,7 @@ const TestQRGenerator: React.FC = () => {
 
   const copyUrl = () => {
     const url = `${window.location.origin}/scan/${qrId}`;
+    console.log('📋 Copiando URL de prueba:', url);
     navigator.clipboard.writeText(url);
     alert('URL copiada al portapapeles');
   };
