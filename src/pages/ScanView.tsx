@@ -1,13 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { User, FileText, CreditCard, Calendar, AlertCircle, ArrowLeft, QrCode, Loader } from 'lucide-react';
+import { 
+  QrCode, 
+  User, 
+  CreditCard, 
+  FileText, 
+  Calendar, 
+  ArrowLeft, 
+  AlertCircle, 
+  Loader 
+} from 'lucide-react';
 import { qrCodeService } from '../lib/database';
-import { QRCode } from '../types';
+import { QRCode as QRCodeType } from '../types';
+import { formatArgentinaDate } from '../lib/utils';
 
 const ScanView: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [qrCode, setQrCode] = useState<QRCode | null>(null);
+  const [qrCode, setQrCode] = useState<QRCodeType | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -41,16 +51,6 @@ const ScanView: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('es-ES', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
   };
 
   if (loading) {
@@ -225,7 +225,7 @@ const ScanView: React.FC = () => {
                 </div>
                 <div>
                   <p className="text-sm text-gray-500 uppercase tracking-wide">Fecha de Creación</p>
-                  <p className="font-semibold text-gray-900">{formatDate(qrCode.created_at)}</p>
+                  <p className="font-semibold text-gray-900">{formatArgentinaDate(qrCode.created_at)}</p>
                 </div>
               </div>
             </div>

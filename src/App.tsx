@@ -10,10 +10,11 @@ function App() {
     <Router>
       <div className="min-h-screen bg-gray-50">
         <Routes>
-          <Route path="/" element={<PublicScan />} />
+          <Route path="/" element={<Navigate to="/login" replace />} />
           <Route path="/login" element={<Login />} />
           <Route path="/admin" element={<AdminDashboard />} />
           <Route path="/scan/:id" element={<ScanView />} />
+          <Route path="/public" element={<PublicScan />} />
         </Routes>
       </div>
     </Router>

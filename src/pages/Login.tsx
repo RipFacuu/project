@@ -170,7 +170,7 @@ const Login: React.FC = () => {
                 ¿Solo quieres escanear un código QR?
               </p>
               <button
-                onClick={() => navigate('/')}
+                onClick={() => navigate('/public')}
                 className="text-sm text-orange-600 hover:text-orange-700 font-medium"
               >
                 Ir al Escáner Público →

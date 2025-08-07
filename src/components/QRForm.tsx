@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Save, X } from 'lucide-react';
+import { Save, X, ArrowLeft } from 'lucide-react';
 import { QRCode, CreateQRCodeData } from '../types';
 import QRGenerator from './QRGenerator';
 
@@ -140,9 +140,21 @@ const QRForm: React.FC<QRFormProps> = ({ qrCode, onSave, onCancel, loading, onCh
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200">
       <div className="p-6">
-        <h2 className="text-xl font-bold text-gray-900 mb-6">
-          {qrCode ? 'Editar Código QR' : 'Crear Nuevo Código QR'}
-        </h2>
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center space-x-3">
+            <button
+              type="button"
+              onClick={onCancel}
+              className="flex items-center space-x-2 px-3 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors duration-200"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span>Volver</span>
+            </button>
+            <h2 className="text-xl font-bold text-gray-900">
+              {qrCode ? 'Editar Código QR' : 'Crear Nuevo Código QR'}
+            </h2>
+          </div>
+        </div>
         
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>

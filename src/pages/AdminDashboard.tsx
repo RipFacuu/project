@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
-import { Plus, RefreshCw } from 'lucide-react';
+import { Plus, RefreshCw, Search } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { qrCodeService } from '../lib/database';
 import { QRCode, CreateQRCodeData } from '../types';
@@ -11,6 +11,8 @@ import QRForm from '../components/QRForm';
 const AdminDashboard: React.FC = () => {
   const { user, loading: authLoading } = useAuth();
   const [qrCodes, setQrCodes] = useState<QRCode[]>([]);
+  const [filteredQrCodes, setFilteredQrCodes] = useState<QRCode[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingQR, setEditingQR] = useState<QRCode | null>(null);
@@ -22,6 +24,21 @@ const AdminDashboard: React.FC = () => {
       fetchQRCodes();
     }
   }, [user]);
+
+  useEffect(() => {
+    // Filtrar códigos QR basado en el término de búsqueda
+    if (searchTerm.trim() === '') {
+      setFilteredQrCodes(qrCodes);
+    } else {
+      const filtered = qrCodes.filter(qr => 
+        qr.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        qr.last_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        qr.dni.includes(searchTerm) ||
+        `${qr.first_name} ${qr.last_name}`.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+      setFilteredQrCodes(filtered);
+    }
+  }, [searchTerm, qrCodes]);
 
   const fetchQRCodes = async () => {
     try {
@@ -92,6 +109,14 @@ const AdminDashboard: React.FC = () => {
     return exists;
   };
 
+  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(e.target.value);
+  };
+
+  const clearSearch = () => {
+    setSearchTerm('');
+  };
+
   if (authLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -148,9 +173,40 @@ const AdminDashboard: React.FC = () => {
                 </button>
               </div>
             </div>
+
+            {/* Barra de búsqueda */}
+            <div className="mb-6">
+              <div className="relative max-w-md">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Search className="h-5 w-5 text-gray-400" />
+                </div>
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={handleSearch}
+                  placeholder="Buscar por nombre o DNI..."
+                  className="block w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 placeholder-gray-400"
+                />
+                {searchTerm && (
+                  <button
+                    onClick={clearSearch}
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                  >
+                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                )}
+              </div>
+              {searchTerm && (
+                <p className="mt-2 text-sm text-gray-600">
+                  {filteredQrCodes.length} resultado{filteredQrCodes.length !== 1 ? 's' : ''} encontrado{filteredQrCodes.length !== 1 ? 's' : ''}
+                </p>
+              )}
+            </div>
             
             <QRList
-              qrCodes={qrCodes}
+              qrCodes={filteredQrCodes}
               onEdit={handleEdit}
               onDelete={handleDelete}
               loading={loading}

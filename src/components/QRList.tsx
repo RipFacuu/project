@@ -1,6 +1,7 @@
 import React from 'react';
 import { Edit, Trash2, QrCode as QrCodeIcon, Calendar } from 'lucide-react';
 import { QRCode } from '../types';
+import { formatArgentinaDate } from '../lib/utils';
 
 interface QRListProps {
   qrCodes: QRCode[];
@@ -11,11 +12,7 @@ interface QRListProps {
 
 const QRList: React.FC<QRListProps> = ({ qrCodes, onEdit, onDelete, loading }) => {
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('es-ES', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
+    return formatArgentinaDate(dateString, false);
   };
 
   if (loading) {
