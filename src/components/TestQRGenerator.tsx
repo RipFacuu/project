@@ -35,7 +35,7 @@ const TestQRGenerator: React.FC = () => {
   const downloadQR = () => {
     if (qrDataUrl) {
       const link = document.createElement('a');
-      link.download = `qr-test-${qrId}.png`;
+      link.download = `${qrId}-mundialito-qr.png`;
       link.href = qrDataUrl;
       link.click();
     }
@@ -102,4 +102,4 @@ const TestQRGenerator: React.FC = () => {
   );
 };
 
-export default TestQRGenerator; 
+export default TestQRGenerator;

@@ -72,7 +72,7 @@ const QRGenerator: React.FC<QRGeneratorProps> = ({
         document.body.removeChild(tempContainer);
         
         const link = document.createElement('a');
-        link.download = `mundialito-qr-${firstName}-${lastName}-${Date.now()}.png`;
+        link.download = `${firstName}-${lastName}-mundialito-qr.png`;
         link.href = canvas.toDataURL('image/png', 1.0);
         link.click();
         
@@ -90,7 +90,7 @@ const QRGenerator: React.FC<QRGeneratorProps> = ({
           });
           
           const link = document.createElement('a');
-          link.download = `mundialito-qr-${firstName}-${lastName}-${Date.now()}.png`;
+          link.download = `${firstName}-${lastName}-mundialito-qr.png`;
           link.href = simpleCanvas.toDataURL('image/png', 1.0);
           link.click();
           
