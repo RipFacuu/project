@@ -163,20 +163,7 @@ const Login: React.FC = () => {
             </div>
           </form>
 
-          {/* Link to public scanner */}
-          <div className="mt-6 pt-6 border-t border-gray-200">
-            <div className="text-center">
-              <p className="text-sm text-gray-600 mb-3">
-                ¿Solo quieres escanear un código QR?
-              </p>
-              <button
-                onClick={() => navigate('/public')}
-                className="text-sm text-orange-600 hover:text-orange-700 font-medium"
-              >
-                Ir al Escáner Público →
-              </button>
-            </div>
-          </div>
+          {/* Eliminado el enlace al escáner público */}
         </div>
       </div>
     </div>

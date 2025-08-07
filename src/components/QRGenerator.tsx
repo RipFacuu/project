@@ -1,7 +1,7 @@
 import React, { useRef, useEffect, useState } from 'react';
 import QRCodeLib from 'qrcode';
-import html2canvas from 'html2canvas';
-import { Download, Share2, MessageCircle, Send } from 'lucide-react';
+// Eliminada la importación de html2canvas
+import { Share2, MessageCircle, Send } from 'lucide-react';
 import logoImage from '../img/Logo.jpeg';
 
 interface QRGeneratorProps {
@@ -38,70 +38,7 @@ const QRGenerator: React.FC<QRGeneratorProps> = ({
     }
   }, [value, size]);
 
-  const downloadQR = async () => {
-    if (containerRef.current) {
-      try {
-        // Crear un contenedor temporal para la captura
-        const tempContainer = containerRef.current.cloneNode(true) as HTMLElement;
-        tempContainer.style.position = 'absolute';
-        tempContainer.style.left = '-9999px';
-        tempContainer.style.top = '0';
-        tempContainer.style.zIndex = '-1';
-        tempContainer.style.background = '#000000';
-        document.body.appendChild(tempContainer);
-        
-        // Esperar un momento para que se renderice
-        await new Promise(resolve => setTimeout(resolve, 100));
-        
-        // Configuración optimizada para evitar imagen negra
-        const canvas = await html2canvas(tempContainer, {
-          backgroundColor: '#000000',
-          scale: 3,
-          useCORS: true,
-          allowTaint: true,
-          logging: false,
-          // Configuraciones básicas
-          foreignObjectRendering: false,
-          imageTimeout: 15000,
-          // Dimensiones exactas
-          width: 320,
-          height: 580
-        });
-        
-        // Limpiar el contenedor temporal
-        document.body.removeChild(tempContainer);
-        
-        const link = document.createElement('a');
-        link.download = `${firstName}-${lastName}-mundialito-qr.png`;
-        link.href = canvas.toDataURL('image/png', 1.0);
-        link.click();
-        
-        onDownload?.();
-      } catch (error) {
-        console.error('Error downloading QR:', error);
-        // Fallback: intentar descarga simple
-        try {
-          const simpleCanvas = await html2canvas(containerRef.current, {
-            backgroundColor: '#000000',
-            scale: 2,
-            useCORS: true,
-            allowTaint: true,
-            logging: false
-          });
-          
-          const link = document.createElement('a');
-          link.download = `${firstName}-${lastName}-mundialito-qr.png`;
-          link.href = simpleCanvas.toDataURL('image/png', 1.0);
-          link.click();
-          
-          onDownload?.();
-        } catch (fallbackError) {
-          console.error('Error en fallback:', fallbackError);
-          alert('Error al descargar la imagen. Intenta de nuevo.');
-        }
-      }
-    }
-  };
+  // Eliminada la función downloadQR
 
   const shareToWhatsApp = () => {
     const text = `¡Escanea este código QR del Mundialito!`;
@@ -162,13 +99,7 @@ const QRGenerator: React.FC<QRGeneratorProps> = ({
         </div>
         
         <div className="flex flex-wrap gap-2 justify-center">
-          <button
-            onClick={downloadQR}
-            className="flex items-center space-x-2 px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 transition-colors duration-200"
-          >
-            <Download className="w-4 h-4" />
-            <span>Descargar</span>
-          </button>
+          {/* Eliminado el botón de descarga */}
           
           <button
             onClick={shareToWhatsApp}
@@ -265,13 +196,7 @@ const QRGenerator: React.FC<QRGeneratorProps> = ({
       
       {/* Botones de acción */}
       <div className="flex flex-wrap gap-3 justify-center">
-        <button
-          onClick={downloadQR}
-          className="flex items-center space-x-2 px-5 py-2.5 bg-gray-800 text-white rounded-xl hover:bg-gray-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
-        >
-          <Download className="w-4 h-4" />
-          <span className="font-medium text-sm">Descargar</span>
-        </button>
+        {/* Eliminado el botón de descarga */}
         
         <button
           onClick={shareToWhatsApp}
