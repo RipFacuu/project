@@ -213,22 +213,49 @@ const QRForm: React.FC<QRFormProps> = ({ qrCode, onSave, onCancel, loading, onCh
             />
           </div>
 
+
+
           {(qrCode || savedQR || (formData.first_name && formData.last_name)) && (
-            <div className="mt-6">
-              <h3 className="text-lg font-semibold text-gray-800 mb-4">
-                {savedQR ? 'Código QR Generado' : 'Vista previa del QR'}
-              </h3>
+            <div className="mt-8">
+              <div className="text-center mb-6">
+                <h3 className="text-xl font-bold text-gray-900 mb-2">
+                  {savedQR ? 'Código QR Generado' : 'Vista previa del QR'}
+                </h3>
+                <p className="text-gray-600">
+                  {savedQR 
+                    ? 'Tu código QR está listo para descargar y compartir' 
+                    : 'Vista previa del diseño seleccionado'
+                  }
+                </p>
+              </div>
+              
               <div className="flex justify-center">
-                <QRGenerator value={generateQRValue()} />
+                <QRGenerator 
+                  value={generateQRValue()} 
+                  firstName={formData.first_name}
+                  lastName={formData.last_name}
+                />
               </div>
               {savedQR && (
-                <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
-                  <p className="text-green-800 text-sm text-center">
-                    ✅ Código QR creado exitosamente. Ya puedes escanearlo o compartirlo.
-                  </p>
-                  <p className="text-green-700 text-xs text-center mt-2">
-                    URL: {window.location.origin}/scan/{savedQR.id}
-                  </p>
+                <div className="mt-6 p-6 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl shadow-sm">
+                  <div className="text-center">
+                    <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                      <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                    <h4 className="text-green-800 font-semibold mb-2">
+                      ¡Código QR creado exitosamente!
+                    </h4>
+                    <p className="text-green-700 text-sm mb-3">
+                      Ya puedes escanearlo o compartirlo con otros participantes.
+                    </p>
+                    <div className="bg-white p-3 rounded-lg border border-green-200">
+                      <p className="text-green-600 text-xs font-mono">
+                        URL: {window.location.origin}/scan/{savedQR.id}
+                      </p>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
