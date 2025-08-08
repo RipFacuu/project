@@ -1,7 +1,7 @@
 import React, { useRef, useEffect, useState } from 'react';
 import QRCodeLib from 'qrcode';
-// Eliminada la importación de html2canvas
-import { Share2, MessageCircle, Send } from 'lucide-react';
+import html2canvas from 'html2canvas';
+import { Share2, MessageCircle, Send, Download } from 'lucide-react';
 import logoImage from '../img/Logo.jpeg';
 
 interface QRGeneratorProps {
@@ -38,7 +38,21 @@ const QRGenerator: React.FC<QRGeneratorProps> = ({
     }
   }, [value, size]);
 
-  // Eliminada la función downloadQR
+  const downloadQR = () => {
+    if (containerRef.current) {
+      html2canvas(containerRef.current).then(canvas => {
+        const link = document.createElement('a');
+        // Incluir nombre y apellido en el nombre del archivo si están disponibles
+        const fileName = firstName && lastName 
+          ? `${firstName}-${lastName}-mundialito-qr.png` 
+          : 'mundialito-qr.png';
+        link.download = fileName;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+        if (onDownload) onDownload();
+      });
+    }
+  };
 
   const shareToWhatsApp = () => {
     const text = `¡Escanea este código QR del Mundialito!`;
@@ -196,7 +210,13 @@ const QRGenerator: React.FC<QRGeneratorProps> = ({
       
       {/* Botones de acción */}
       <div className="flex flex-wrap gap-3 justify-center">
-        {/* Eliminado el botón de descarga */}
+        <button
+          onClick={downloadQR}
+          className="flex items-center space-x-2 px-5 py-2.5 bg-gray-800 text-white rounded-xl hover:bg-gray-900 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
+        >
+          <Download className="w-4 h-4" />
+          <span className="font-medium text-sm">Descargar</span>
+        </button>
         
         <button
           onClick={shareToWhatsApp}

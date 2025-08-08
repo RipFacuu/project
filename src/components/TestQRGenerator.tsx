@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import QRCodeLib from 'qrcode';
-import { Copy } from 'lucide-react';
+import { Copy, Download } from 'lucide-react';
 
 const TestQRGenerator: React.FC = () => {
   const [qrDataUrl, setQrDataUrl] = useState<string>('');
@@ -32,7 +32,14 @@ const TestQRGenerator: React.FC = () => {
     alert('URL copiada al portapapeles');
   };
 
-  // Eliminada la función downloadQR
+  const downloadQR = () => {
+    if (qrDataUrl) {
+      const link = document.createElement('a');
+      link.download = `${qrId}-mundialito-qr.png`;
+      link.href = qrDataUrl;
+      link.click();
+    }
+  };
 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
@@ -68,7 +75,13 @@ const TestQRGenerator: React.FC = () => {
             </div>
             
             <div className="flex space-x-2 justify-center">
-              {/* Eliminado el botón de descarga */}
+              <button
+                onClick={downloadQR}
+                className="flex items-center space-x-2 px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-900 transition-colors duration-200"
+              >
+                <Download className="w-4 h-4" />
+                <span>Descargar</span>
+              </button>
               
               <button
                 onClick={copyUrl}
