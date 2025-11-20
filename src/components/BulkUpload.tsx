@@ -1,0 +1,297 @@
+import React, { useState } from 'react';
+import { Upload, FileText, X, CheckCircle, AlertCircle } from 'lucide-react';
+import { CreateQRCodeData } from '../types';
+import { qrCodeService } from '../lib/database';
+
+interface BulkUploadProps {
+  onComplete: () => void;
+  onCancel: () => void;
+}
+
+const BulkUpload: React.FC<BulkUploadProps> = ({ onComplete, onCancel }) => {
+  const [file, setFile] = useState<File | null>(null);
+  const [preview, setPreview] = useState<CreateQRCodeData[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [results, setResults] = useState<{
+    created: number;
+    skipped: number;
+    errors: string[];
+  } | null>(null);
+
+  const parseCSV = (csvText: string): CreateQRCodeData[] => {
+    const lines = csvText.split('\n').filter(line => line.trim());
+    if (lines.length === 0) return [];
+
+    // Obtener encabezados (primera línea)
+    const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+    
+    // Buscar índices de columnas (flexible)
+    const nameIndex = headers.findIndex(h => h.includes('nombre') || h.includes('name') || h === 'n');
+    const lastNameIndex = headers.findIndex(h => h.includes('apellido') || h.includes('lastname') || h.includes('last') || h === 'a');
+    const dniIndex = headers.findIndex(h => h === 'dni' || h.includes('dni') || h.includes('documento'));
+    const descIndex = headers.findIndex(h => h.includes('descripcion') || h.includes('description') || h.includes('desc'));
+
+    // Si no hay encabezados, asumir formato: nombre,apellido,dni,descripcion
+    const startIndex = nameIndex >= 0 ? 1 : 0;
+
+    const data: CreateQRCodeData[] = [];
+    for (let i = startIndex; i < lines.length; i++) {
+      const values = lines[i].split(',').map(v => v.trim().replace(/^"|"$/g, ''));
+      
+      const firstName = nameIndex >= 0 ? values[nameIndex] : values[0];
+      const lastName = lastNameIndex >= 0 ? values[lastNameIndex] : values[1];
+      const dni = dniIndex >= 0 ? values[dniIndex] : values[2];
+      const description = descIndex >= 0 ? values[descIndex] : (values[3] || '');
+
+      if (firstName && lastName && dni) {
+        data.push({
+          first_name: firstName,
+          last_name: lastName,
+          dni: dni,
+          description: description || undefined
+        });
+      }
+    }
+
+    return data;
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = e.target.files?.[0];
+    if (!selectedFile) return;
+
+    if (!selectedFile.name.endsWith('.csv')) {
+      alert('Por favor, selecciona un archivo CSV');
+      return;
+    }
+
+    setFile(selectedFile);
+    setResults(null);
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const text = event.target?.result as string;
+      const parsed = parseCSV(text);
+      setPreview(parsed);
+    };
+    reader.readAsText(selectedFile, 'UTF-8');
+  };
+
+  const handleUpload = async () => {
+    if (preview.length === 0) {
+      alert('No hay datos válidos para subir');
+      return;
+    }
+
+    setUploading(true);
+    setResults(null);
+
+    let created = 0;
+    let skipped = 0;
+    const errors: string[] = [];
+
+    for (const item of preview) {
+      try {
+        // Verificar si el DNI ya existe
+        const { exists } = await qrCodeService.checkDNIExists(item.dni);
+        
+        if (exists) {
+          skipped++;
+          continue;
+        }
+
+        const { error } = await qrCodeService.createQRCode(item);
+        if (error) {
+          errors.push(`${item.first_name} ${item.last_name}: ${error.message || 'Error desconocido'}`);
+        } else {
+          created++;
+        }
+      } catch (error) {
+        errors.push(`${item.first_name} ${item.last_name}: Error al crear`);
+      }
+    }
+
+    setResults({ created, skipped, errors });
+    setUploading(false);
+
+    if (errors.length === 0 && skipped === 0) {
+      setTimeout(() => {
+        onComplete();
+      }, 2000);
+    }
+  };
+
+  return (
+    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-xl font-bold text-gray-900">Carga Masiva desde CSV</h2>
+        <button
+          onClick={onCancel}
+          className="text-gray-400 hover:text-gray-600 transition-colors"
+        >
+          <X className="w-5 h-5" />
+        </button>
+      </div>
+
+      <div className="space-y-6">
+        {!file ? (
+          <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-orange-500 transition-colors">
+            <input
+              type="file"
+              accept=".csv"
+              onChange={handleFileSelect}
+              className="hidden"
+              id="csv-upload"
+            />
+            <label
+              htmlFor="csv-upload"
+              className="cursor-pointer flex flex-col items-center space-y-4"
+            >
+              <div className="bg-orange-100 p-4 rounded-full">
+                <Upload className="w-8 h-8 text-orange-600" />
+              </div>
+              <div>
+                <p className="text-gray-700 font-medium">Haz clic para seleccionar un archivo CSV</p>
+                <p className="text-sm text-gray-500 mt-1">o arrastra el archivo aquí</p>
+              </div>
+              <div className="bg-gray-50 rounded-lg p-4 text-left max-w-md w-full">
+                <p className="text-xs font-medium text-gray-700 mb-2">Formato del CSV:</p>
+                <code className="text-xs text-gray-600 block">
+                  nombre,apellido,dni,descripcion<br/>
+                  Juan,Pérez,12345678,Club las Palmas - Listado Profes y Staff<br/>
+                  María,González,87654321,Club las Palmas - Listado Profes y Staff
+                </code>
+              </div>
+            </label>
+          </div>
+        ) : (
+          <>
+            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+              <div className="flex items-center space-x-3">
+                <FileText className="w-5 h-5 text-gray-600" />
+                <div>
+                  <p className="font-medium text-gray-900">{file.name}</p>
+                  <p className="text-sm text-gray-500">{preview.length} registros encontrados</p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setFile(null);
+                  setPreview([]);
+                  setResults(null);
+                }}
+                className="text-red-500 hover:text-red-700"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {preview.length > 0 && !results && (
+              <>
+                <div className="max-h-64 overflow-y-auto border border-gray-200 rounded-lg">
+                  <table className="w-full text-sm">
+                    <thead className="bg-gray-50 sticky top-0">
+                      <tr>
+                        <th className="px-4 py-2 text-left text-gray-700">Nombre</th>
+                        <th className="px-4 py-2 text-left text-gray-700">Apellido</th>
+                        <th className="px-4 py-2 text-left text-gray-700">DNI</th>
+                        <th className="px-4 py-2 text-left text-gray-700">Descripción</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {preview.slice(0, 10).map((item, index) => (
+                        <tr key={index} className="border-t border-gray-100">
+                          <td className="px-4 py-2">{item.first_name}</td>
+                          <td className="px-4 py-2">{item.last_name}</td>
+                          <td className="px-4 py-2">{item.dni}</td>
+                          <td className="px-4 py-2 text-xs text-gray-500">{item.description || '-'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {preview.length > 10 && (
+                    <p className="text-xs text-gray-500 p-2 text-center">
+                      ... y {preview.length - 10} más
+                    </p>
+                  )}
+                </div>
+
+                <div className="flex space-x-3">
+                  <button
+                    onClick={handleUpload}
+                    disabled={uploading}
+                    className="flex-1 flex items-center justify-center space-x-2 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 disabled:opacity-50 transition-colors duration-200"
+                  >
+                    {uploading ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                        <span>Subiendo...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="w-4 h-4" />
+                        <span>Subir {preview.length} registros</span>
+                      </>
+                    )}
+                  </button>
+                  <button
+                    onClick={onCancel}
+                    className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors duration-200"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </>
+            )}
+
+            {results && (
+              <div className="space-y-4">
+                <div className={`p-4 rounded-lg ${
+                  results.errors.length === 0 
+                    ? 'bg-green-50 border border-green-200' 
+                    : 'bg-yellow-50 border border-yellow-200'
+                }`}>
+                  <div className="flex items-start space-x-3">
+                    {results.errors.length === 0 ? (
+                      <CheckCircle className="w-5 h-5 text-green-600 mt-0.5" />
+                    ) : (
+                      <AlertCircle className="w-5 h-5 text-yellow-600 mt-0.5" />
+                    )}
+                    <div className="flex-1">
+                      <p className="font-medium text-gray-900">
+                        Creados: {results.created}, Omitidos: {results.skipped}
+                      </p>
+                      {results.errors.length > 0 && (
+                        <div className="mt-2">
+                          <p className="text-sm text-gray-700 mb-1">Errores ({results.errors.length}):</p>
+                          <ul className="text-xs text-gray-600 space-y-1 max-h-32 overflow-y-auto">
+                            {results.errors.slice(0, 5).map((error, index) => (
+                              <li key={index}>• {error}</li>
+                            ))}
+                            {results.errors.length > 5 && (
+                              <li>... y {results.errors.length - 5} más</li>
+                            )}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  onClick={onComplete}
+                  className="w-full px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors duration-200"
+                >
+                  Cerrar
+                </button>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default BulkUpload;
+

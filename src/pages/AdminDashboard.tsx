@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
-import { Plus, RefreshCw, Search, Users } from 'lucide-react';
+import { Plus, RefreshCw, Search, Users, Upload, Download } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { qrCodeService } from '../lib/database';
+import { downloadAllQRsAsZip } from '../lib/downloadUtils';
 import { QRCode, CreateQRCodeData } from '../types';
 import Header from '../components/Header';
 import QRList from '../components/QRList';
 import QRForm from '../components/QRForm';
+import BulkUpload from '../components/BulkUpload';
 
 const AdminDashboard: React.FC = () => {
   const { user, loading: authLoading } = useAuth();
@@ -19,6 +21,8 @@ const AdminDashboard: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [savedQR, setSavedQR] = useState<QRCode | null>(null);
   const [creatingProfes, setCreatingProfes] = useState(false);
+  const [showBulkUpload, setShowBulkUpload] = useState(false);
+  const [downloadingZip, setDownloadingZip] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -192,6 +196,27 @@ const AdminDashboard: React.FC = () => {
     }
   };
 
+  const handleBulkUploadComplete = async () => {
+    setShowBulkUpload(false);
+    await fetchQRCodes();
+  };
+
+  const handleDownloadAll = async () => {
+    if (qrCodes.length === 0) {
+      alert('No hay códigos QR para descargar');
+      return;
+    }
+
+    setDownloadingZip(true);
+    try {
+      await downloadAllQRsAsZip(qrCodes);
+    } catch (error) {
+      console.error('Error descargando ZIP:', error);
+    } finally {
+      setDownloadingZip(false);
+    }
+  };
+
   if (authLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -212,7 +237,12 @@ const AdminDashboard: React.FC = () => {
       <Header title="Gestión de Códigos QR" showLogout />
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {showForm ? (
+        {showBulkUpload ? (
+          <BulkUpload
+            onComplete={handleBulkUploadComplete}
+            onCancel={() => setShowBulkUpload(false)}
+          />
+        ) : showForm ? (
           <QRForm
             qrCode={editingQR}
             onSave={handleSave}
@@ -254,6 +284,23 @@ const AdminDashboard: React.FC = () => {
                 >
                   <Users className={`w-4 h-4 ${creatingProfes ? 'animate-pulse' : ''}`} />
                   <span>{creatingProfes ? 'Creando...' : 'Crear Profes'}</span>
+                </button>
+
+                <button
+                  onClick={() => setShowBulkUpload(true)}
+                  className="flex items-center space-x-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors duration-200"
+                >
+                  <Upload className="w-4 h-4" />
+                  <span>Subir CSV</span>
+                </button>
+
+                <button
+                  onClick={handleDownloadAll}
+                  disabled={downloadingZip || qrCodes.length === 0}
+                  className="flex items-center space-x-2 px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 disabled:opacity-50 transition-colors duration-200"
+                >
+                  <Download className={`w-4 h-4 ${downloadingZip ? 'animate-bounce' : ''}`} />
+                  <span>{downloadingZip ? 'Generando...' : `Descargar Todo (${qrCodes.length})`}</span>
                 </button>
               </div>
             </div>
