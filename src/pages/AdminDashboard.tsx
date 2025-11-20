@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
-import { Plus, RefreshCw, Search } from 'lucide-react';
+import { Plus, RefreshCw, Search, Users } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { qrCodeService } from '../lib/database';
 import { QRCode, CreateQRCodeData } from '../types';
@@ -18,6 +18,7 @@ const AdminDashboard: React.FC = () => {
   const [editingQR, setEditingQR] = useState<QRCode | null>(null);
   const [saving, setSaving] = useState(false);
   const [savedQR, setSavedQR] = useState<QRCode | null>(null);
+  const [creatingProfes, setCreatingProfes] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -117,6 +118,80 @@ const AdminDashboard: React.FC = () => {
     setSearchTerm('');
   };
 
+  const handleCreateProfes = async () => {
+    if (!confirm('¿Deseas crear los códigos QR para todos los profes y staff del Club las Palmas? Esto creará 18 nuevos registros.')) {
+      return;
+    }
+
+    setCreatingProfes(true);
+    
+    try {
+      const profes: CreateQRCodeData[] = [
+        { first_name: 'Luana', last_name: 'Sardot', dni: '43372211', description: 'Club las Palmas - Listado Profes y Staff' },
+        { first_name: 'Lucia', last_name: 'Pesce', dni: '46587402', description: 'Club las Palmas - Listado Profes y Staff' },
+        { first_name: 'Juan', last_name: 'Vannucci', dni: '44896331', description: 'Club las Palmas - Listado Profes y Staff' },
+        { first_name: 'Ezequiel', last_name: 'Aliendo', dni: '39621814', description: 'Club las Palmas - Listado Profes y Staff' },
+        { first_name: 'Santiago', last_name: 'Paniagua', dni: '46309824', description: 'Club las Palmas - Listado Profes y Staff' },
+        { first_name: 'Brenda', last_name: 'Argañaraz', dni: '39936843', description: 'Club las Palmas - Listado Profes y Staff' },
+        { first_name: 'Ignacio', last_name: 'Monasterolo', dni: '44219095', description: 'Club las Palmas - Listado Profes y Staff' },
+        { first_name: 'Diego', last_name: 'Díaz', dni: '41962688', description: 'Club las Palmas - Listado Profes y Staff' },
+        { first_name: 'Gonzalo', last_name: 'Candela', dni: '44341707', description: 'Club las Palmas - Listado Profes y Staff' },
+        { first_name: 'Jenifer', last_name: 'Ugarte', dni: '42315920', description: 'Club las Palmas - Listado Profes y Staff' },
+        { first_name: 'Juan Cruz', last_name: 'Cabrera', dni: '44774745', description: 'Club las Palmas - Listado Profes y Staff' },
+        { first_name: 'Constanza', last_name: 'Acevedo', dni: '43284783', description: 'Club las Palmas - Listado Profes y Staff' },
+        { first_name: 'Federica', last_name: 'Bustos', dni: '39690730', description: 'Club las Palmas - Listado Profes y Staff' },
+        { first_name: 'Pablo', last_name: 'Mansilla', dni: '29204709', description: 'Club las Palmas - Listado Profes y Staff' },
+        { first_name: 'Manuel', last_name: 'Flamini', dni: '44972158', description: 'Club las Palmas - Listado Profes y Staff' },
+        { first_name: 'Ángel Ariel', last_name: 'Flores Ponce', dni: '43561256', description: 'Club las Palmas - Listado Profes y Staff' },
+        { first_name: 'Jeremías Ezequiel', last_name: 'Cadelago', dni: '42799505', description: 'Club las Palmas - Listado Profes y Staff' },
+        { first_name: 'Ivana V', last_name: 'Sponers', dni: '30971550', description: 'Club las Palmas - Listado Profes y Staff' },
+      ];
+
+      let created = 0;
+      let skipped = 0;
+      const errors: string[] = [];
+
+      for (const profe of profes) {
+        try {
+          // Verificar si el DNI ya existe
+          const { exists } = await qrCodeService.checkDNIExists(profe.dni);
+          
+          if (exists) {
+            skipped++;
+            continue;
+          }
+
+          const { error } = await qrCodeService.createQRCode(profe);
+          if (error) {
+            errors.push(`${profe.first_name} ${profe.last_name}: ${error.message || 'Error desconocido'}`);
+          } else {
+            created++;
+          }
+        } catch (error) {
+          errors.push(`${profe.first_name} ${profe.last_name}: Error al crear`);
+        }
+      }
+
+      // Mostrar resultado
+      let message = `Creados: ${created}, Omitidos (ya existían): ${skipped}`;
+      if (errors.length > 0) {
+        message += `\n\nErrores: ${errors.length}\n${errors.slice(0, 5).join('\n')}`;
+        if (errors.length > 5) {
+          message += `\n... y ${errors.length - 5} más`;
+        }
+      }
+      alert(message);
+
+      // Refrescar la lista
+      await fetchQRCodes();
+    } catch (error) {
+      console.error('Error creando profes:', error);
+      alert('Error inesperado al crear los registros');
+    } finally {
+      setCreatingProfes(false);
+    }
+  };
+
   if (authLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -154,7 +229,7 @@ const AdminDashboard: React.FC = () => {
                 <p className="text-gray-600">Gestiona todos tus códigos QR desde aquí</p>
               </div>
               
-              <div className="flex space-x-3">
+              <div className="flex flex-wrap gap-3">
                 <button
                   onClick={fetchQRCodes}
                   disabled={loading}
@@ -170,6 +245,15 @@ const AdminDashboard: React.FC = () => {
                 >
                   <Plus className="w-4 h-4" />
                   <span>Crear QR</span>
+                </button>
+
+                <button
+                  onClick={handleCreateProfes}
+                  disabled={creatingProfes}
+                  className="flex items-center space-x-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 transition-colors duration-200"
+                >
+                  <Users className={`w-4 h-4 ${creatingProfes ? 'animate-pulse' : ''}`} />
+                  <span>{creatingProfes ? 'Creando...' : 'Crear Profes'}</span>
                 </button>
               </div>
             </div>
