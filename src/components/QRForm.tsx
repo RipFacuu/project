@@ -17,7 +17,8 @@ const QRForm: React.FC<QRFormProps> = ({ qrCode, onSave, onCancel, loading, onCh
     first_name: qrCode?.first_name || '',
     last_name: qrCode?.last_name || '',
     dni: qrCode?.dni || '',
-    description: qrCode?.description || ''
+    description: qrCode?.description || '',
+    category: qrCode?.category || ''
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -225,7 +226,22 @@ const QRForm: React.FC<QRFormProps> = ({ qrCode, onSave, onCancel, loading, onCh
             />
           </div>
 
-
+          <div>
+            <label htmlFor="category" className="block text-sm font-medium text-gray-700 mb-1">
+              Carpeta/Categoría (opcional)
+            </label>
+            <input
+              type="text"
+              id="category"
+              value={formData.category}
+              onChange={(e) => handleChange('category', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+              placeholder="Ej: Club las Palmas, Escuela de Fútbol, etc."
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Organiza tus QRs en carpetas para descargarlos por separado
+            </p>
+          </div>
 
           {(qrCode || savedQR || (formData.first_name && formData.last_name)) && (
             <div className="mt-8">

@@ -1,11 +1,11 @@
 import JSZip from 'jszip';
-import QRCodeLib from 'qrcode';
 import { QRCode } from '../types';
+import { generateQRCardImage } from './qrCardGenerator';
 
 /**
- * Genera y descarga todos los códigos QR como un archivo ZIP
+ * Genera y descarga todos los códigos QR como un archivo ZIP con tarjetas completas
  */
-export const downloadAllQRsAsZip = async (qrCodes: QRCode[]) => {
+export const downloadAllQRsAsZip = async (qrCodes: QRCode[], category?: string) => {
   if (qrCodes.length === 0) {
     alert('No hay códigos QR para descargar');
     return;
@@ -15,59 +15,89 @@ export const downloadAllQRsAsZip = async (qrCodes: QRCode[]) => {
     const zip = new JSZip();
     const baseUrl = window.location.origin;
 
-    // Crear una carpeta para los QRs
-    const qrFolder = zip.folder('qr_codes');
-
-    if (!qrFolder) {
-      throw new Error('No se pudo crear la carpeta en el ZIP');
+    // Agrupar por categoría si está definida
+    const groupedByCategory: { [key: string]: QRCode[] } = {};
+    
+    if (category) {
+      // Solo descargar de la categoría especificada
+      const filtered = qrCodes.filter(qr => qr.category === category);
+      if (filtered.length === 0) {
+        alert(`No hay códigos QR en la categoría "${category}"`);
+        return;
+      }
+      groupedByCategory[category || 'Sin categoría'] = filtered;
+    } else {
+      // Agrupar por categoría o usar "Sin categoría"
+      qrCodes.forEach(qr => {
+        const cat = qr.category || 'Sin categoría';
+        if (!groupedByCategory[cat]) {
+          groupedByCategory[cat] = [];
+        }
+        groupedByCategory[cat].push(qr);
+      });
     }
 
-    // Generar QRs y agregarlos al ZIP
-    for (const qrCode of qrCodes) {
-      const url = `${baseUrl}/scan/${qrCode.id}`;
-      
-      try {
-        // Generar QR como data URL
-        const qrDataUrl = await QRCodeLib.toDataURL(url, {
-          width: 300,
-          margin: 2,
-          color: {
-            dark: '#000000',
-            light: '#ffffff'
-          }
-        });
+    let totalProcessed = 0;
+    let totalFailed = 0;
 
-        // Convertir data URL a blob
-        const base64Data = qrDataUrl.split(',')[1];
-        const byteCharacters = atob(base64Data);
-        const byteNumbers = new Array(byteCharacters.length);
-        for (let i = 0; i < byteCharacters.length; i++) {
-          byteNumbers[i] = byteCharacters.charCodeAt(i);
+    // Procesar cada categoría
+    for (const [catName, qrList] of Object.entries(groupedByCategory)) {
+      // Crear carpeta para la categoría
+      const categoryFolder = zip.folder(catName) || zip;
+
+      // Generar tarjetas completas para cada QR
+      for (const qrCode of qrList) {
+        const url = `${baseUrl}/scan/${qrCode.id}`;
+        
+        try {
+          // Generar tarjeta completa
+          const blob = await generateQRCardImage(
+            qrCode.first_name,
+            qrCode.last_name,
+            url
+          );
+
+          // Nombre del archivo: nombre-apellido-dni.png
+          const fileName = `${qrCode.first_name}-${qrCode.last_name}-${qrCode.dni}.png`
+            .replace(/\s+/g, '-')
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, ''); // Eliminar acentos
+
+          // Agregar al ZIP en la carpeta de categoría
+          categoryFolder.file(fileName, blob);
+          totalProcessed++;
+        } catch (error) {
+          console.error(`Error generando tarjeta para ${qrCode.first_name} ${qrCode.last_name}:`, error);
+          totalFailed++;
         }
-        const byteArray = new Uint8Array(byteNumbers);
-        const blob = new Blob([byteArray], { type: 'image/png' });
-
-        // Nombre del archivo: nombre-apellido-dni.png
-        const fileName = `${qrCode.first_name}-${qrCode.last_name}-${qrCode.dni}.png`
-          .replace(/\s+/g, '-')
-          .toLowerCase();
-
-        // Agregar al ZIP
-        qrFolder.file(fileName, blob);
-      } catch (error) {
-        console.error(`Error generando QR para ${qrCode.first_name} ${qrCode.last_name}:`, error);
       }
+    }
+
+    if (totalProcessed === 0) {
+      alert('No se pudo generar ninguna tarjeta. Por favor, intenta de nuevo.');
+      return;
     }
 
     // Generar el ZIP y descargarlo
     const zipBlob = await zip.generateAsync({ type: 'blob' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(zipBlob);
-    link.download = `qr_codes_${new Date().toISOString().split('T')[0]}.zip`;
+    
+    // Nombre del archivo con fecha y categoría si es única
+    const fileName = category 
+      ? `qr_codes_${category}_${new Date().toISOString().split('T')[0]}.zip`
+      : `qr_codes_${new Date().toISOString().split('T')[0]}.zip`;
+    
+    link.download = fileName.replace(/\s+/g, '_').toLowerCase();
     link.click();
     URL.revokeObjectURL(link.href);
 
-    alert(`Se descargaron ${qrCodes.length} códigos QR exitosamente`);
+    const message = totalFailed > 0
+      ? `Se descargaron ${totalProcessed} tarjetas. ${totalFailed} fallaron.`
+      : `Se descargaron ${totalProcessed} tarjetas exitosamente`;
+    
+    alert(message);
   } catch (error) {
     console.error('Error descargando QRs:', error);
     alert('Error al generar el archivo ZIP. Por favor, intenta de nuevo.');
@@ -75,21 +105,15 @@ export const downloadAllQRsAsZip = async (qrCodes: QRCode[]) => {
 };
 
 /**
- * Genera un QR individual como imagen PNG
+ * Obtiene todas las categorías únicas de una lista de QRs
  */
-export const generateQRImage = async (qrCode: QRCode): Promise<string> => {
-  const baseUrl = window.location.origin;
-  const url = `${baseUrl}/scan/${qrCode.id}`;
-  
-  const qrDataUrl = await QRCodeLib.toDataURL(url, {
-    width: 300,
-    margin: 2,
-    color: {
-      dark: '#000000',
-      light: '#ffffff'
+export const getCategories = (qrCodes: QRCode[]): string[] => {
+  const categories = new Set<string>();
+  qrCodes.forEach(qr => {
+    if (qr.category) {
+      categories.add(qr.category);
     }
   });
-
-  return qrDataUrl;
+  return Array.from(categories).sort();
 };
 

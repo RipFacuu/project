@@ -12,6 +12,7 @@ const BulkUpload: React.FC<BulkUploadProps> = ({ onComplete, onCancel }) => {
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<CreateQRCodeData[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [category, setCategory] = useState<string>('');
   const [results, setResults] = useState<{
     created: number;
     skipped: number;
@@ -30,6 +31,7 @@ const BulkUpload: React.FC<BulkUploadProps> = ({ onComplete, onCancel }) => {
     const lastNameIndex = headers.findIndex(h => h.includes('apellido') || h.includes('lastname') || h.includes('last') || h === 'a');
     const dniIndex = headers.findIndex(h => h === 'dni' || h.includes('dni') || h.includes('documento'));
     const descIndex = headers.findIndex(h => h.includes('descripcion') || h.includes('description') || h.includes('desc'));
+    const categoryIndex = headers.findIndex(h => h.includes('categoria') || h.includes('category') || h.includes('carpeta') || h.includes('folder'));
 
     // Si no hay encabezados, asumir formato: nombre,apellido,dni,descripcion
     const startIndex = nameIndex >= 0 ? 1 : 0;
@@ -42,13 +44,15 @@ const BulkUpload: React.FC<BulkUploadProps> = ({ onComplete, onCancel }) => {
       const lastName = lastNameIndex >= 0 ? values[lastNameIndex] : values[1];
       const dni = dniIndex >= 0 ? values[dniIndex] : values[2];
       const description = descIndex >= 0 ? values[descIndex] : (values[3] || '');
+      const itemCategory = categoryIndex >= 0 ? values[categoryIndex] : '';
 
       if (firstName && lastName && dni) {
         data.push({
           first_name: firstName,
           last_name: lastName,
           dni: dni,
-          description: description || undefined
+          description: description || undefined,
+          category: itemCategory || undefined
         });
       }
     }
@@ -91,16 +95,20 @@ const BulkUpload: React.FC<BulkUploadProps> = ({ onComplete, onCancel }) => {
     const errors: string[] = [];
 
     for (const item of preview) {
+      // Aplicar categoría global si está definida y el item no tiene categoría
+      const itemWithCategory = category && !item.category 
+        ? { ...item, category: category.trim() || undefined }
+        : item;
       try {
         // Verificar si el DNI ya existe
-        const { exists } = await qrCodeService.checkDNIExists(item.dni);
+        const { exists } = await qrCodeService.checkDNIExists(itemWithCategory.dni);
         
         if (exists) {
           skipped++;
           continue;
         }
 
-        const { error } = await qrCodeService.createQRCode(item);
+        const { error } = await qrCodeService.createQRCode(itemWithCategory);
         if (error) {
           errors.push(`${item.first_name} ${item.last_name}: ${error.message || 'Error desconocido'}`);
         } else {
@@ -157,9 +165,11 @@ const BulkUpload: React.FC<BulkUploadProps> = ({ onComplete, onCancel }) => {
               <div className="bg-gray-50 rounded-lg p-4 text-left max-w-md w-full">
                 <p className="text-xs font-medium text-gray-700 mb-2">Formato del CSV:</p>
                 <code className="text-xs text-gray-600 block">
-                  nombre,apellido,dni,descripcion<br/>
-                  Juan,Pérez,12345678,Club las Palmas - Listado Profes y Staff<br/>
-                  María,González,87654321,Club las Palmas - Listado Profes y Staff
+                  nombre,apellido,dni,descripcion,categoria<br/>
+                  Juan,Pérez,12345678,Club las Palmas - Listado Profes y Staff,Club las Palmas<br/>
+                  María,González,87654321,Club las Palmas - Listado Profes y Staff,Club las Palmas<br/>
+                  <br/>
+                  Nota: La columna "categoria" es opcional. También puedes asignar una categoría global al subir.
                 </code>
               </div>
             </label>
@@ -188,6 +198,23 @@ const BulkUpload: React.FC<BulkUploadProps> = ({ onComplete, onCancel }) => {
 
             {preview.length > 0 && !results && (
               <>
+                <div>
+                  <label htmlFor="bulk-category" className="block text-sm font-medium text-gray-700 mb-2">
+                    Carpeta/Categoría (opcional - se aplicará a todos los registros si el CSV no tiene columna de categoría)
+                  </label>
+                  <input
+                    type="text"
+                    id="bulk-category"
+                    value={category}
+                    onChange={(e) => setCategory(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                    placeholder="Ej: Club las Palmas, Escuela de Fútbol, etc."
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Si el CSV tiene una columna "categoria" o "category", se usará esa. Si no, se aplicará esta categoría a todos.
+                  </p>
+                </div>
+
                 <div className="max-h-64 overflow-y-auto border border-gray-200 rounded-lg">
                   <table className="w-full text-sm">
                     <thead className="bg-gray-50 sticky top-0">

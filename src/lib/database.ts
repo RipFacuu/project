@@ -91,7 +91,28 @@ export const qrCodeService = {
     return { data, error };
   },
 
-  async getUserQRCodes(): Promise<{ data: QRCode[] | null; error: any }> {
+  async getUserQRCodes(category?: string): Promise<{ data: QRCode[] | null; error: any }> {
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user) {
+      return { data: null, error: { message: 'User not authenticated' } };
+    }
+
+    let query = supabase
+      .from('qr_codes')
+      .select('*')
+      .eq('user_id', user.id);
+
+    if (category) {
+      query = query.eq('category', category);
+    }
+
+    const { data, error } = await query.order('created_at', { ascending: false });
+
+    return { data, error };
+  },
+
+  async getUserCategories(): Promise<{ data: string[] | null; error: any }> {
     const { data: { user } } = await supabase.auth.getUser();
     
     if (!user) {
@@ -100,11 +121,18 @@ export const qrCodeService = {
 
     const { data, error } = await supabase
       .from('qr_codes')
-      .select('*')
+      .select('category')
       .eq('user_id', user.id)
-      .order('created_at', { ascending: false });
+      .not('category', 'is', null);
 
-    return { data, error };
+    if (error) {
+      return { data: null, error };
+    }
+
+    // Obtener categorías únicas
+    const categories = Array.from(new Set(data?.map(item => item.category).filter(Boolean) || [])) as string[];
+    
+    return { data: categories.sort(), error: null };
   },
 
   async getQRCodeById(id: string): Promise<{ data: QRCode | null; error: any }> {

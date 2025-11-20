@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
-import { Plus, RefreshCw, Search, Users, Upload, Download } from 'lucide-react';
+import { Plus, RefreshCw, Search, Users, Upload, Download, Folder, X } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { qrCodeService } from '../lib/database';
-import { downloadAllQRsAsZip } from '../lib/downloadUtils';
+import { downloadAllQRsAsZip, getCategories } from '../lib/downloadUtils';
 import { QRCode, CreateQRCodeData } from '../types';
 import Header from '../components/Header';
 import QRList from '../components/QRList';
@@ -23,34 +23,75 @@ const AdminDashboard: React.FC = () => {
   const [creatingProfes, setCreatingProfes] = useState(false);
   const [showBulkUpload, setShowBulkUpload] = useState(false);
   const [downloadingZip, setDownloadingZip] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<string>('');
+  const [categories, setCategories] = useState<string[]>([]);
+  const [showCategoryFilter, setShowCategoryFilter] = useState(false);
 
   useEffect(() => {
     if (user) {
       fetchQRCodes();
+      fetchCategories();
     }
   }, [user]);
 
+  // Cerrar el filtro de categorías cuando se hace clic fuera
   useEffect(() => {
-    // Filtrar códigos QR basado en el término de búsqueda
-    if (searchTerm.trim() === '') {
-      setFilteredQrCodes(qrCodes);
-    } else {
-      const filtered = qrCodes.filter(qr => 
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (showCategoryFilter && !target.closest('.category-filter')) {
+        setShowCategoryFilter(false);
+      }
+    };
+
+    if (showCategoryFilter) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
+    }
+  }, [showCategoryFilter]);
+
+  useEffect(() => {
+    // Filtrar códigos QR basado en el término de búsqueda y categoría
+    let filtered = qrCodes;
+    
+    // Filtrar por categoría
+    if (selectedCategory) {
+      filtered = filtered.filter(qr => qr.category === selectedCategory);
+    }
+    
+    // Filtrar por término de búsqueda
+    if (searchTerm.trim() !== '') {
+      filtered = filtered.filter(qr => 
         qr.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         qr.last_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         qr.dni.includes(searchTerm) ||
         `${qr.first_name} ${qr.last_name}`.toLowerCase().includes(searchTerm.toLowerCase())
       );
-      setFilteredQrCodes(filtered);
     }
-  }, [searchTerm, qrCodes]);
+    
+    setFilteredQrCodes(filtered);
+  }, [searchTerm, qrCodes, selectedCategory]);
+
+  const fetchCategories = async () => {
+    try {
+      const { data, error } = await qrCodeService.getUserCategories();
+      if (error) throw error;
+      setCategories(data || []);
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+    }
+  };
 
   const fetchQRCodes = async () => {
     try {
-      const { data, error } = await qrCodeService.getUserQRCodes();
+      const { data, error } = await qrCodeService.getUserQRCodes(selectedCategory || undefined);
 
       if (error) throw error;
       setQrCodes(data || []);
+      
+      // Actualizar categorías después de cargar QRs
+      await fetchCategories();
     } catch (error) {
       console.error('Error fetching QR codes:', error);
     } finally {
@@ -131,24 +172,24 @@ const AdminDashboard: React.FC = () => {
     
     try {
       const profes: CreateQRCodeData[] = [
-        { first_name: 'Luana', last_name: 'Sardot', dni: '43372211', description: 'Club las Palmas - Listado Profes y Staff' },
-        { first_name: 'Lucia', last_name: 'Pesce', dni: '46587402', description: 'Club las Palmas - Listado Profes y Staff' },
-        { first_name: 'Juan', last_name: 'Vannucci', dni: '44896331', description: 'Club las Palmas - Listado Profes y Staff' },
-        { first_name: 'Ezequiel', last_name: 'Aliendo', dni: '39621814', description: 'Club las Palmas - Listado Profes y Staff' },
-        { first_name: 'Santiago', last_name: 'Paniagua', dni: '46309824', description: 'Club las Palmas - Listado Profes y Staff' },
-        { first_name: 'Brenda', last_name: 'Argañaraz', dni: '39936843', description: 'Club las Palmas - Listado Profes y Staff' },
-        { first_name: 'Ignacio', last_name: 'Monasterolo', dni: '44219095', description: 'Club las Palmas - Listado Profes y Staff' },
-        { first_name: 'Diego', last_name: 'Díaz', dni: '41962688', description: 'Club las Palmas - Listado Profes y Staff' },
-        { first_name: 'Gonzalo', last_name: 'Candela', dni: '44341707', description: 'Club las Palmas - Listado Profes y Staff' },
-        { first_name: 'Jenifer', last_name: 'Ugarte', dni: '42315920', description: 'Club las Palmas - Listado Profes y Staff' },
-        { first_name: 'Juan Cruz', last_name: 'Cabrera', dni: '44774745', description: 'Club las Palmas - Listado Profes y Staff' },
-        { first_name: 'Constanza', last_name: 'Acevedo', dni: '43284783', description: 'Club las Palmas - Listado Profes y Staff' },
-        { first_name: 'Federica', last_name: 'Bustos', dni: '39690730', description: 'Club las Palmas - Listado Profes y Staff' },
-        { first_name: 'Pablo', last_name: 'Mansilla', dni: '29204709', description: 'Club las Palmas - Listado Profes y Staff' },
-        { first_name: 'Manuel', last_name: 'Flamini', dni: '44972158', description: 'Club las Palmas - Listado Profes y Staff' },
-        { first_name: 'Ángel Ariel', last_name: 'Flores Ponce', dni: '43561256', description: 'Club las Palmas - Listado Profes y Staff' },
-        { first_name: 'Jeremías Ezequiel', last_name: 'Cadelago', dni: '42799505', description: 'Club las Palmas - Listado Profes y Staff' },
-        { first_name: 'Ivana V', last_name: 'Sponers', dni: '30971550', description: 'Club las Palmas - Listado Profes y Staff' },
+        { first_name: 'Luana', last_name: 'Sardot', dni: '43372211', description: 'Club las Palmas - Listado Profes y Staff', category: 'Club las Palmas' },
+        { first_name: 'Lucia', last_name: 'Pesce', dni: '46587402', description: 'Club las Palmas - Listado Profes y Staff', category: 'Club las Palmas' },
+        { first_name: 'Juan', last_name: 'Vannucci', dni: '44896331', description: 'Club las Palmas - Listado Profes y Staff', category: 'Club las Palmas' },
+        { first_name: 'Ezequiel', last_name: 'Aliendo', dni: '39621814', description: 'Club las Palmas - Listado Profes y Staff', category: 'Club las Palmas' },
+        { first_name: 'Santiago', last_name: 'Paniagua', dni: '46309824', description: 'Club las Palmas - Listado Profes y Staff', category: 'Club las Palmas' },
+        { first_name: 'Brenda', last_name: 'Argañaraz', dni: '39936843', description: 'Club las Palmas - Listado Profes y Staff', category: 'Club las Palmas' },
+        { first_name: 'Ignacio', last_name: 'Monasterolo', dni: '44219095', description: 'Club las Palmas - Listado Profes y Staff', category: 'Club las Palmas' },
+        { first_name: 'Diego', last_name: 'Díaz', dni: '41962688', description: 'Club las Palmas - Listado Profes y Staff', category: 'Club las Palmas' },
+        { first_name: 'Gonzalo', last_name: 'Candela', dni: '44341707', description: 'Club las Palmas - Listado Profes y Staff', category: 'Club las Palmas' },
+        { first_name: 'Jenifer', last_name: 'Ugarte', dni: '42315920', description: 'Club las Palmas - Listado Profes y Staff', category: 'Club las Palmas' },
+        { first_name: 'Juan Cruz', last_name: 'Cabrera', dni: '44774745', description: 'Club las Palmas - Listado Profes y Staff', category: 'Club las Palmas' },
+        { first_name: 'Constanza', last_name: 'Acevedo', dni: '43284783', description: 'Club las Palmas - Listado Profes y Staff', category: 'Club las Palmas' },
+        { first_name: 'Federica', last_name: 'Bustos', dni: '39690730', description: 'Club las Palmas - Listado Profes y Staff', category: 'Club las Palmas' },
+        { first_name: 'Pablo', last_name: 'Mansilla', dni: '29204709', description: 'Club las Palmas - Listado Profes y Staff', category: 'Club las Palmas' },
+        { first_name: 'Manuel', last_name: 'Flamini', dni: '44972158', description: 'Club las Palmas - Listado Profes y Staff', category: 'Club las Palmas' },
+        { first_name: 'Ángel Ariel', last_name: 'Flores Ponce', dni: '43561256', description: 'Club las Palmas - Listado Profes y Staff', category: 'Club las Palmas' },
+        { first_name: 'Jeremías Ezequiel', last_name: 'Cadelago', dni: '42799505', description: 'Club las Palmas - Listado Profes y Staff', category: 'Club las Palmas' },
+        { first_name: 'Ivana V', last_name: 'Sponers', dni: '30971550', description: 'Club las Palmas - Listado Profes y Staff', category: 'Club las Palmas' },
       ];
 
       let created = 0;
@@ -202,19 +243,32 @@ const AdminDashboard: React.FC = () => {
   };
 
   const handleDownloadAll = async () => {
-    if (qrCodes.length === 0) {
+    const qrsToDownload = selectedCategory 
+      ? qrCodes.filter(qr => qr.category === selectedCategory)
+      : qrCodes;
+
+    if (qrsToDownload.length === 0) {
       alert('No hay códigos QR para descargar');
       return;
     }
 
     setDownloadingZip(true);
     try {
-      await downloadAllQRsAsZip(qrCodes);
+      await downloadAllQRsAsZip(qrsToDownload, selectedCategory || undefined);
     } catch (error) {
       console.error('Error descargando ZIP:', error);
     } finally {
       setDownloadingZip(false);
     }
+  };
+
+  const handleCategoryChange = (category: string) => {
+    setSelectedCategory(category);
+    setShowCategoryFilter(false);
+  };
+
+  const clearCategoryFilter = () => {
+    setSelectedCategory('');
   };
 
   if (authLoading) {
@@ -296,43 +350,120 @@ const AdminDashboard: React.FC = () => {
 
                 <button
                   onClick={handleDownloadAll}
-                  disabled={downloadingZip || qrCodes.length === 0}
+                  disabled={downloadingZip || filteredQrCodes.length === 0}
                   className="flex items-center space-x-2 px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 disabled:opacity-50 transition-colors duration-200"
                 >
                   <Download className={`w-4 h-4 ${downloadingZip ? 'animate-bounce' : ''}`} />
-                  <span>{downloadingZip ? 'Generando...' : `Descargar Todo (${qrCodes.length})`}</span>
+                  <span>
+                    {downloadingZip 
+                      ? 'Generando...' 
+                      : `Descargar ${selectedCategory ? `"${selectedCategory}"` : 'Todo'} (${filteredQrCodes.length})`
+                    }
+                  </span>
                 </button>
               </div>
             </div>
 
-            {/* Barra de búsqueda */}
-            <div className="mb-6">
-              <div className="relative max-w-md">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Search className="h-5 w-5 text-gray-400" />
+            {/* Barra de búsqueda y filtros */}
+            <div className="mb-6 space-y-4">
+              <div className="flex flex-col sm:flex-row gap-4">
+                {/* Búsqueda */}
+                <div className="relative flex-1 max-w-md">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Search className="h-5 w-5 text-gray-400" />
+                  </div>
+                  <input
+                    type="text"
+                    value={searchTerm}
+                    onChange={handleSearch}
+                    placeholder="Buscar por nombre o DNI..."
+                    className="block w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 placeholder-gray-400"
+                  />
+                  {searchTerm && (
+                    <button
+                      onClick={clearSearch}
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                    >
+                      <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  )}
                 </div>
-                <input
-                  type="text"
-                  value={searchTerm}
-                  onChange={handleSearch}
-                  placeholder="Buscar por nombre o DNI..."
-                  className="block w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 placeholder-gray-400"
-                />
-                {searchTerm && (
+
+                {/* Filtro de categorías */}
+                <div className="relative category-filter">
                   <button
-                    onClick={clearSearch}
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                    onClick={() => setShowCategoryFilter(!showCategoryFilter)}
+                    className={`flex items-center space-x-2 px-4 py-2 border rounded-lg transition-colors duration-200 ${
+                      selectedCategory
+                        ? 'bg-orange-50 border-orange-300 text-orange-700'
+                        : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+                    }`}
                   >
-                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
+                    <Folder className="w-4 h-4" />
+                    <span>{selectedCategory || 'Todas las carpetas'}</span>
+                    {selectedCategory && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          clearCategoryFilter();
+                        }}
+                        className="ml-2 text-gray-400 hover:text-gray-600"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    )}
                   </button>
-                )}
+
+                  {showCategoryFilter && (
+                    <div className="absolute right-0 mt-2 w-64 bg-white border border-gray-200 rounded-lg shadow-lg z-20 max-h-60 overflow-y-auto">
+                      <div className="p-2">
+                        <button
+                          onClick={() => handleCategoryChange('')}
+                          className={`w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors ${
+                            !selectedCategory ? 'bg-orange-50 text-orange-700' : 'text-gray-700'
+                          }`}
+                        >
+                          Todas las carpetas
+                        </button>
+                        {categories.length > 0 && (
+                          <div className="border-t border-gray-200 mt-1 pt-1">
+                            {categories.map((category) => (
+                              <button
+                                key={category}
+                                onClick={() => handleCategoryChange(category)}
+                                className={`w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors ${
+                                  selectedCategory === category ? 'bg-orange-50 text-orange-700' : 'text-gray-700'
+                                }`}
+                              >
+                                {category}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                        {categories.length === 0 && (
+                          <p className="px-3 py-2 text-sm text-gray-500">
+                            No hay carpetas creadas aún
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
-              {searchTerm && (
-                <p className="mt-2 text-sm text-gray-600">
-                  {filteredQrCodes.length} resultado{filteredQrCodes.length !== 1 ? 's' : ''} encontrado{filteredQrCodes.length !== 1 ? 's' : ''}
-                </p>
+
+              {(searchTerm || selectedCategory) && (
+                <div className="flex items-center space-x-4 text-sm text-gray-600">
+                  <p>
+                    {filteredQrCodes.length} resultado{filteredQrCodes.length !== 1 ? 's' : ''} encontrado{filteredQrCodes.length !== 1 ? 's' : ''}
+                  </p>
+                  {selectedCategory && (
+                    <p className="text-orange-600">
+                      Carpeta: <span className="font-medium">{selectedCategory}</span>
+                    </p>
+                  )}
+                </div>
               )}
             </div>
             

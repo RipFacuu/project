@@ -5,6 +5,7 @@ export interface QRCode {
   last_name: string;
   dni: string;
   description?: string;
+  category?: string;
   created_at: string;
 }
 
@@ -19,6 +20,7 @@ export interface CreateQRCodeData {
   last_name: string;
   dni: string;
   description?: string;
+  category?: string;
 }
 
 export interface LoginData {
