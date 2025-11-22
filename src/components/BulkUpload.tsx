@@ -101,21 +101,40 @@ const BulkUpload: React.FC<BulkUploadProps> = ({ onComplete, onCancel }) => {
         : item;
       try {
         // Verificar si el DNI ya existe
-        const { exists } = await qrCodeService.checkDNIExists(itemWithCategory.dni);
+        const { exists, error: checkError } = await qrCodeService.checkDNIExists(itemWithCategory.dni);
+        
+        // Si hay error al verificar, continuar con la creación (la función createQRCode también verifica)
+        if (checkError && checkError.message !== 'User not authenticated') {
+          console.warn(`Error verificando DNI ${itemWithCategory.dni}:`, checkError);
+          // Continuar con la creación, createQRCode también verificará
+        }
         
         if (exists) {
           skipped++;
+          console.log(`DNI ${itemWithCategory.dni} ya existe, omitiendo...`);
           continue;
         }
 
-        const { error } = await qrCodeService.createQRCode(itemWithCategory);
+        const { data, error } = await qrCodeService.createQRCode(itemWithCategory);
         if (error) {
-          errors.push(`${item.first_name} ${item.last_name}: ${error.message || 'Error desconocido'}`);
-        } else {
+          const errorMessage = error.message || 'Error desconocido';
+          
+          // Si el error es que el DNI ya existe, debería contarse como omitido, no como error
+          if (errorMessage.includes('Ya existe') || errorMessage.includes('DNI')) {
+            skipped++;
+            console.log(`DNI ${itemWithCategory.dni} ya existe (verificado en createQRCode), omitiendo...`);
+          } else {
+            errors.push(`${item.first_name} ${item.last_name} (DNI: ${item.dni}): ${errorMessage}`);
+            console.error(`Error creando QR para ${item.first_name} ${item.last_name}:`, error);
+          }
+        } else if (data) {
           created++;
+          console.log(`✓ Creado QR para ${item.first_name} ${item.last_name} (DNI: ${item.dni})`);
         }
-      } catch (error) {
-        errors.push(`${item.first_name} ${item.last_name}: Error al crear`);
+      } catch (error: any) {
+        const errorMessage = error?.message || 'Error inesperado al crear';
+        errors.push(`${item.first_name} ${item.last_name} (DNI: ${item.dni}): ${errorMessage}`);
+        console.error(`Error inesperado creando QR para ${item.first_name} ${item.last_name}:`, error);
       }
     }
 
@@ -274,13 +293,17 @@ const BulkUpload: React.FC<BulkUploadProps> = ({ onComplete, onCancel }) => {
             {results && (
               <div className="space-y-4">
                 <div className={`p-4 rounded-lg ${
-                  results.errors.length === 0 
+                  results.created > 0 && results.errors.length === 0
                     ? 'bg-green-50 border border-green-200' 
+                    : results.skipped > 0 && results.created === 0 && results.errors.length === 0
+                    ? 'bg-blue-50 border border-blue-200'
                     : 'bg-yellow-50 border border-yellow-200'
                 }`}>
                   <div className="flex items-start space-x-3">
-                    {results.errors.length === 0 ? (
+                    {results.created > 0 && results.errors.length === 0 ? (
                       <CheckCircle className="w-5 h-5 text-green-600 mt-0.5" />
+                    ) : results.skipped > 0 && results.created === 0 && results.errors.length === 0 ? (
+                      <AlertCircle className="w-5 h-5 text-blue-600 mt-0.5" />
                     ) : (
                       <AlertCircle className="w-5 h-5 text-yellow-600 mt-0.5" />
                     )}
@@ -288,6 +311,11 @@ const BulkUpload: React.FC<BulkUploadProps> = ({ onComplete, onCancel }) => {
                       <p className="font-medium text-gray-900">
                         Creados: {results.created}, Omitidos: {results.skipped}
                       </p>
+                      {results.skipped > 0 && results.created === 0 && results.errors.length === 0 && (
+                        <p className="text-sm text-blue-700 mt-2">
+                          ⚠️ Todos los registros fueron omitidos porque ya existen en la base de datos. Los DNIs ingresados ya tienen códigos QR asociados.
+                        </p>
+                      )}
                       {results.errors.length > 0 && (
                         <div className="mt-2">
                           <p className="text-sm text-gray-700 mb-1">Errores ({results.errors.length}):</p>
