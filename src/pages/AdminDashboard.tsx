@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, RefreshCw, Search, Users, Upload, Download, Folder, X } from 'lucide-react';
+import { Plus, RefreshCw, Search, Users, Upload, Download, Folder, X, AlertTriangle } from 'lucide-react';
 import { qrCodeService } from '../lib/database';
 import { downloadAllQRsAsZip, getCategories } from '../lib/downloadUtils';
 import { QRCode, CreateQRCodeData } from '../types';
@@ -7,6 +7,7 @@ import Header from '../components/Header';
 import QRList from '../components/QRList';
 import QRForm from '../components/QRForm';
 import BulkUpload from '../components/BulkUpload';
+import { isSupabaseMisconfigured } from '../lib/supabase';
 
 const AdminDashboard: React.FC = () => {
   const [qrCodes, setQrCodes] = useState<QRCode[]>([]);
@@ -284,6 +285,56 @@ const AdminDashboard: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       <Header title="Gestión de Códigos QR" />
+
+      {isSupabaseMisconfigured && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
+          <div className="border-l-4 border-red-500 bg-red-50 p-4 rounded shadow-sm">
+            <div className="flex items-start space-x-3">
+              <AlertTriangle className="w-6 h-6 text-red-600 flex-shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <h3 className="text-lg font-bold text-red-800 mb-1">
+                  ⚠️ Falta configurar variables de entorno en Vercel
+                </h3>
+                <p className="text-red-700 text-sm mb-3">
+                  La app no se puede conectar a Supabase porque no están las variables
+                  configuradas en Vercel. Hacelo así:
+                </p>
+                <ol className="list-decimal list-inside space-y-1 text-red-700 text-sm">
+                  <li>
+                    Entrá al panel de Vercel → tu proyecto →{' '}
+                    <strong>Settings → Environment Variables</strong>
+                  </li>
+                  <li>
+                    Agregá estas DOS variables (marcá "Production" + "Preview" + "Development"):
+                  </li>
+                </ol>
+                <div className="mt-3 space-y-2">
+                  <div className="bg-white border border-red-200 rounded p-3 font-mono text-xs">
+                    <div className="mb-1">
+                      <span className="font-bold text-red-700">VITE_SUPABASE_URL</span>
+                      <br />
+                      <span className="text-gray-700">
+                        https://bfoqnoemdbjoruqvhpwz.supabase.co
+                      </span>
+                    </div>
+                    <div>
+                      <span className="font-bold text-red-700">VITE_SUPABASE_ANON_KEY</span>
+                      <br />
+                      <span className="text-gray-700 break-all">
+                        eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJmb3Fub2VtZGJqb3J1cXZocHd6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYwMjU1ODksImV4cCI6MjEwMTYwMTU4OX0.1BbiY0Nrohb1JsAl4R9qdsmzyW7KxagoyJHGerWWi9A
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <p className="text-red-700 text-sm mt-3">
+                  3. Después de guardar, andá a <strong>Deployments</strong> → click en los 3
+                  puntos del último deploy → <strong>Redeploy</strong>.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {showBulkUpload ? (
