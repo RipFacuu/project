@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Navigate } from 'react-router-dom';
 import { Plus, RefreshCw, Search, Users, Upload, Download, Folder, X } from 'lucide-react';
-import { useAuth } from '../hooks/useAuth';
 import { qrCodeService } from '../lib/database';
 import { downloadAllQRsAsZip, getCategories } from '../lib/downloadUtils';
 import { QRCode, CreateQRCodeData } from '../types';
@@ -11,7 +9,6 @@ import QRForm from '../components/QRForm';
 import BulkUpload from '../components/BulkUpload';
 
 const AdminDashboard: React.FC = () => {
-  const { user, loading: authLoading } = useAuth();
   const [qrCodes, setQrCodes] = useState<QRCode[]>([]);
   const [filteredQrCodes, setFilteredQrCodes] = useState<QRCode[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -28,11 +25,9 @@ const AdminDashboard: React.FC = () => {
   const [showCategoryFilter, setShowCategoryFilter] = useState(false);
 
   useEffect(() => {
-    if (user) {
-      fetchQRCodes();
-      fetchCategories();
-    }
-  }, [user]);
+    fetchQRCodes();
+    fetchCategories();
+  }, []);
 
   // Cerrar el filtro de categorías cuando se hace clic fuera
   useEffect(() => {
@@ -119,7 +114,22 @@ const AdminDashboard: React.FC = () => {
       }
     } catch (error: unknown) {
       console.error('Error saving QR code:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Error al guardar el código QR';
+      let errorMessage = error instanceof Error ? error.message : 'Error al guardar el código QR';
+
+      if (typeof error === 'object' && error !== null && 'code' in error) {
+        const code = (error as any).code;
+        const status = (error as any).status;
+        const details = (error as any).details || (error as any).message || '';
+
+        if (status === 401 || code === '401' || String(details + errorMessage).toLowerCase().includes('401') || String(details + errorMessage).toLowerCase().includes('unauthorized')) {
+          errorMessage = '❌ ERROR 401: Supabase no permite guardar sin autenticación.\n\nSOLUCIÓN: Tenés que ir al panel de Supabase → SQL Editor y ejecutar el archivo:\nsupabase/disable_auth.sql\n\n(Lo agregué al proyecto. Copiá su contenido y ejecutalo en SQL Editor.)';
+        } else if (status === 403 || code === 'PGRST' || String(details + errorMessage).toLowerCase().includes('row level') || String(details + errorMessage).toLowerCase().includes('policy')) {
+          errorMessage = '❌ ERROR de permisos (RLS). Tenés que ejecutar el SQL en Supabase:\n\n1. Entrá a: https://supabase.com/dashboard/project/bfoqnoemdbjoruqvhpwz\n2. Menú SQL Editor → New query\n3. Pegá el contenido de: supabase/disable_auth.sql\n4. Apretá RUN (▶️)\n\nDespués recargá la app.';
+        } else {
+          errorMessage = `Error al guardar el código QR.\n\nCódigo: ${code || status || 'N/A'}\nDetalle: ${details || errorMessage}`;
+        }
+      }
+
       alert(errorMessage);
     } finally {
       setSaving(false);
@@ -271,24 +281,9 @@ const AdminDashboard: React.FC = () => {
     setSelectedCategory('');
   };
 
-  if (authLoading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500 mx-auto"></div>
-          <p className="text-gray-600 mt-2">Cargando...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!user) {
-    return <Navigate to="/login" replace />;
-  }
-
   return (
     <div className="min-h-screen bg-gray-50">
-      <Header title="Gestión de Códigos QR" showLogout />
+      <Header title="Gestión de Códigos QR" />
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {showBulkUpload ? (

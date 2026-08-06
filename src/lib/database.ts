@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { QRCode, CreateQRCodeData, LoginData, RegisterData } from '../types';
+import { QRCode, CreateQRCodeData } from '../types';
 
 type DatabaseError = {
   message: string;
@@ -7,70 +7,46 @@ type DatabaseError = {
   details?: string;
 };
 
-// Auth functions
 export const authService = {
-  async login({ email, password }: LoginData) {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    return { data, error };
+  async login() {
+    return { data: null, error: null };
   },
-
-  async register({ email, password }: RegisterData) {
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-    });
-    return { data, error };
+  async register() {
+    return { data: null, error: null };
   },
-
   async logout() {
-    const { error } = await supabase.auth.signOut();
-    return { error };
+    return { error: null };
   },
-
   async getCurrentUser() {
-    const { data: { user }, error } = await supabase.auth.getUser();
-    return { user, error };
+    return { user: { id: 'public-admin' } as any, error: null };
   },
-
   onAuthStateChange(callback: (event: string, session: any) => void) {
-    return supabase.auth.onAuthStateChange(callback);
+    return { data: { subscription: { unsubscribe: () => {} } } };
   }
 };
 
-// QR Code functions
 export const qrCodeService = {
   async checkDNIExists(dni: string): Promise<{ exists: boolean; error: DatabaseError | null }> {
-    const { data: { user } } = await supabase.auth.getUser();
-    
-    if (!user) {
-      return { exists: false, error: { message: 'User not authenticated' } };
+    try {
+      const { data, error } = await supabase
+        .from('qr_codes')
+        .select('id')
+        .eq('dni', dni)
+        .limit(1);
+
+      if (error) {
+        console.warn('[checkDNIExists] No se pudo verificar DNI (se asume que no existe):', error);
+        return { exists: false, error: null };
+      }
+
+      return { exists: !!(data && data.length > 0), error: null };
+    } catch (err) {
+      console.warn('[checkDNIExists] Excepción al verificar DNI:', err);
+      return { exists: false, error: null };
     }
-
-    const { data, error } = await supabase
-      .from('qr_codes')
-      .select('id')
-      .eq('user_id', user.id)
-      .eq('dni', dni)
-      .single();
-
-    if (error && error.code !== 'PGRST116') {
-      return { exists: false, error };
-    }
-
-    return { exists: !!data, error: null };
   },
 
   async createQRCode(qrData: CreateQRCodeData): Promise<{ data: QRCode | null; error: any }> {
-    const { data: { user } } = await supabase.auth.getUser();
-    
-    if (!user) {
-      return { data: null, error: { message: 'User not authenticated' } };
-    }
-
-    // Check if DNI already exists for this user
     const { exists, error: checkError } = await this.checkDNIExists(qrData.dni);
     if (checkError) {
       return { data: null, error: checkError };
@@ -82,7 +58,7 @@ export const qrCodeService = {
     const { data, error } = await supabase
       .from('qr_codes')
       .insert({
-        user_id: user.id,
+        user_id: '00000000-0000-0000-0000-000000000000',
         ...qrData,
       })
       .select()
@@ -92,16 +68,9 @@ export const qrCodeService = {
   },
 
   async getUserQRCodes(category?: string): Promise<{ data: QRCode[] | null; error: any }> {
-    const { data: { user } } = await supabase.auth.getUser();
-    
-    if (!user) {
-      return { data: null, error: { message: 'User not authenticated' } };
-    }
-
     let query = supabase
       .from('qr_codes')
-      .select('*')
-      .eq('user_id', user.id);
+      .select('*');
 
     if (category) {
       query = query.eq('category', category);
@@ -113,23 +82,15 @@ export const qrCodeService = {
   },
 
   async getUserCategories(): Promise<{ data: string[] | null; error: any }> {
-    const { data: { user } } = await supabase.auth.getUser();
-    
-    if (!user) {
-      return { data: null, error: { message: 'User not authenticated' } };
-    }
-
     const { data, error } = await supabase
       .from('qr_codes')
       .select('category')
-      .eq('user_id', user.id)
       .not('category', 'is', null);
 
     if (error) {
       return { data: null, error };
     }
 
-    // Obtener categorías únicas
     const categories = Array.from(new Set(data?.map(item => item.category).filter(Boolean) || [])) as string[];
     
     return { data: categories.sort(), error: null };
@@ -146,40 +107,25 @@ export const qrCodeService = {
   },
 
   async deleteQRCode(id: string): Promise<{ error: any }> {
-    const { data: { user } } = await supabase.auth.getUser();
-    
-    if (!user) {
-      return { error: { message: 'User not authenticated' } };
-    }
-
     const { error } = await supabase
       .from('qr_codes')
       .delete()
-      .eq('id', id)
-      .eq('user_id', user.id);
+      .eq('id', id);
 
     return { error };
   },
 
   async updateQRCode(id: string, updates: Partial<CreateQRCodeData>): Promise<{ data: QRCode | null; error: any }> {
-    const { data: { user } } = await supabase.auth.getUser();
-    
-    if (!user) {
-      return { data: null, error: { message: 'User not authenticated' } };
-    }
-
     const { data, error } = await supabase
       .from('qr_codes')
       .update(updates)
       .eq('id', id)
-      .eq('user_id', user.id)
       .select()
       .single();
 
     return { data, error };
   },
 
-  // Función de depuración para verificar si un QR existe
   async debugQRCode(id: string): Promise<{ exists: boolean; data: QRCode | null; error: any }> {
     const { data, error } = await supabase
       .from('qr_codes')
@@ -197,7 +143,6 @@ export const qrCodeService = {
     return { exists: true, data, error: null };
   },
 
-  // Función para obtener todos los QRs (solo para administración)
   async getAllQRCodes(): Promise<{ data: QRCode[] | null; error: any }> {
     const { data, error } = await supabase
       .from('qr_codes')
@@ -207,12 +152,10 @@ export const qrCodeService = {
     return { data, error };
   },
 
-  // Función para verificar la estructura de la base de datos
   async checkDatabaseStructure(): Promise<{ valid: boolean; info: any; error: any }> {
     try {
       console.log('🔍 === CHECKING DATABASE STRUCTURE ===');
       
-      // Verificar si la tabla existe
       const { data: tableInfo, error: tableError } = await supabase
         .from('qr_codes')
         .select('id')
@@ -225,7 +168,6 @@ export const qrCodeService = {
       
       console.log('✅ Tabla qr_codes accesible');
       
-      // Obtener información sobre los IDs
       const { data: allQRs, error: qrError } = await supabase
         .from('qr_codes')
         .select('id, created_at')

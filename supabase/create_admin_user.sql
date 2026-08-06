@@ -1,0 +1,11 @@
+-- =============================================================================
+-- Crear usuario admin manualmente (si el auto-registro falla)
+-- Ejecutar en Supabase SQL Editor
+-- =============================================================================
+-- NOTA: Lo más fácil es ir a Authentication → Users → Add user → Create new user
+--       Email: admin@test.com
+--       Password: qradmin123
+--       ✅ Marcar "Auto Confirm User"
+--
+-- Si ya existe admin@qr.local con problemas, borralo desde Authentication → Users
+-- antes de crear el nuevo usuario.

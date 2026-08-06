@@ -1,15 +1,15 @@
 import React, { useState } from 'react';
-import { Navigate, useNavigate } from 'react-router-dom';
+import { Navigate } from 'react-router-dom';
 import { LogIn, QrCode, UserPlus } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
+import { DEV_AUTO_LOGIN, DEV_EMAIL, hasDevCredentials } from '../lib/devAuth';
 import { LoginData, RegisterData } from '../types';
 
 const Login: React.FC = () => {
-  const { user, loading, signIn, signUp } = useAuth();
-  const navigate = useNavigate();
+  const { user, loading, devAuthError, signIn, signUp, retryDevLogin } = useAuth();
   const [isLogin, setIsLogin] = useState(true);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState(DEV_EMAIL);
+  const [password, setPassword] = useState(import.meta.env.VITE_DEV_PASSWORD ?? '');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -38,14 +38,16 @@ const Login: React.FC = () => {
     if (isLogin) {
       const { error } = await signIn(credentials as LoginData);
       if (error) {
-        setError('Credenciales incorrectas. Por favor, verifica tu email y contraseña.');
+        setError(error.message || 'Credenciales incorrectas. Por favor, verifica tu email y contraseña.');
       }
     } else {
-      const { error } = await signUp(credentials as RegisterData);
+      const { data, error } = await signUp(credentials as RegisterData);
       if (error) {
-        setError('Error al crear la cuenta. Verifica que el email no esté en uso.');
+        setError(error.message || 'Error al crear la cuenta. Verifica que el email no esté en uso.');
+      } else if (data?.session) {
+        setError('Cuenta creada. Entrando...');
       } else {
-        setError('Cuenta creada exitosamente. Revisa tu email para confirmar.');
+        setError('Cuenta creada. Si no entrás automáticamente, desactivá "Confirm email" en Supabase.');
       }
     }
     
@@ -92,6 +94,24 @@ const Login: React.FC = () => {
               Registrarse
             </button>
           </div>
+
+          {DEV_AUTO_LOGIN && hasDevCredentials && (
+            <div className="mb-6 px-4 py-3 rounded-lg text-sm bg-blue-50 border border-blue-200 text-blue-800">
+              <p>Modo rápido activo: entrás automáticamente con <strong>{DEV_EMAIL}</strong></p>
+              {devAuthError && (
+                <p className="mt-2 text-red-700">{devAuthError}</p>
+              )}
+              {devAuthError && (
+                <button
+                  type="button"
+                  onClick={() => retryDevLogin()}
+                  className="mt-3 text-sm font-medium text-blue-900 underline hover:no-underline"
+                >
+                  Reintentar acceso automático
+                </button>
+              )}
+            </div>
+          )}
 
           <form className="space-y-6" onSubmit={handleSubmit}>
             {error && (
