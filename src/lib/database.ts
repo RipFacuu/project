@@ -20,7 +20,7 @@ export const authService = {
   async getCurrentUser() {
     return { user: { id: 'public-admin' } as any, error: null };
   },
-  onAuthStateChange(callback: (event: string, session: any) => void) {
+  onAuthStateChange(_callback: (event: string, session: any) => void) {
     return { data: { subscription: { unsubscribe: () => {} } } };
   }
 };
@@ -155,19 +155,19 @@ export const qrCodeService = {
   async checkDatabaseStructure(): Promise<{ valid: boolean; info: any; error: any }> {
     try {
       console.log('🔍 === CHECKING DATABASE STRUCTURE ===');
-      
-      const { data: tableInfo, error: tableError } = await supabase
+
+      const { error: tableError } = await supabase
         .from('qr_codes')
         .select('id')
         .limit(1);
-      
+
       if (tableError) {
         console.error('❌ Error accediendo a la tabla qr_codes:', tableError);
         return { valid: false, info: null, error: tableError };
       }
-      
+
       console.log('✅ Tabla qr_codes accesible');
-      
+
       const { data: allQRs, error: qrError } = await supabase
         .from('qr_codes')
         .select('id, created_at')

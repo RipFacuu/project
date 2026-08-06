@@ -32,7 +32,7 @@ const QRGenerator: React.FC<QRGeneratorProps> = ({
           dark: '#000000',
           light: '#ffffff'
         }
-      }).then(url => {
+      }).then((url: string) => {
         setQrDataUrl(url);
       });
     }

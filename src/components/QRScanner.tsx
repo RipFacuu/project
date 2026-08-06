@@ -62,7 +62,6 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScan, onClose }) => {
             fps: 30,
             qrbox: { width: 300, height: 300 },
             aspectRatio: 1.0,
-            disableFlip: false,
             rememberLastUsedCamera: true,
             supportedScanTypes: [0, 1],
           },

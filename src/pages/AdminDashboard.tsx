@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, RefreshCw, Search, Users, Upload, Download, Folder, X, AlertTriangle } from 'lucide-react';
 import { qrCodeService } from '../lib/database';
-import { downloadAllQRsAsZip, getCategories } from '../lib/downloadUtils';
+import { downloadAllQRsAsZip } from '../lib/downloadUtils';
 import { QRCode, CreateQRCodeData } from '../types';
 import Header from '../components/Header';
 import QRList from '../components/QRList';

@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Html5Qrcode } from 'html5-qrcode';
-import { X, Camera, AlertCircle, Shield } from 'lucide-react';
+import { Html5QrcodeScanner } from 'html5-qrcode';
+import { X, Camera, Shield } from 'lucide-react';
 
 interface SimpleQRScannerProps {
   onScan: (result: string) => void;
@@ -8,7 +8,7 @@ interface SimpleQRScannerProps {
 }
 
 const SimpleQRScanner: React.FC<SimpleQRScannerProps> = ({ onScan, onClose }) => {
-  const scannerRef = useRef<Html5Qrcode | null>(null);
+  const scannerRef = useRef<Html5QrcodeScanner | null>(null);
   const [isScanning, setIsScanning] = useState(false);
   const [error, setError] = useState('');
   const [permissionStatus, setPermissionStatus] = useState<'requesting' | 'granted' | 'denied' | 'unknown'>('unknown');
@@ -20,54 +20,59 @@ const SimpleQRScanner: React.FC<SimpleQRScannerProps> = ({ onScan, onClose }) =>
         setError('');
 
         // Crear instancia del escáner
-        scannerRef.current = new Html5Qrcode("qr-reader");
+        scannerRef.current = new Html5QrcodeScanner(
+          "qr-reader",
+          {
+            fps: 30,
+            qrbox: { width: 300, height: 300 },
+            aspectRatio: 1.0,
+            rememberLastUsedCamera: true,
+          },
+          false
+        );
 
-        // Obtener lista de cámaras
-        const devices = await Html5Qrcode.getCameras();
-        
-        if (devices && devices.length > 0) {
-          // Usar la primera cámara disponible (preferiblemente la trasera)
-          const cameraId = devices[0].id;
-          
-          await scannerRef.current.start(
-            cameraId,
-            {
-              fps: 30,
-              qrbox: { width: 300, height: 300 },
-              aspectRatio: 1.0,
-            },
-            (decodedText) => {
-              console.log('QR detectado:', decodedText);
-              stopScanner();
-              onScan(decodedText);
-            },
-            (errorMessage) => {
-              // Solo mostrar errores importantes
-              if (errorMessage.includes('NotFound') || 
-                  errorMessage.includes('No QR code found')) {
-                return;
-              }
-              console.log('Error de escaneo:', errorMessage);
+        scannerRef.current.render(
+          (decodedText: string) => {
+            console.log('QR detectado:', decodedText);
+            stopScanner();
+            onScan(decodedText);
+          },
+          (errorMessage: string) => {
+            // Solo mostrar errores importantes
+            if (
+              errorMessage.includes('NotFound') ||
+              errorMessage.includes('No QR code found')
+            ) {
+              return;
             }
-          );
+            if (
+              errorMessage.includes('Permission denied') ||
+              errorMessage.includes('NotAllowedError')
+            ) {
+              setError('Permiso de cámara denegado. Por favor, permite el acceso a la cámara.');
+              setPermissionStatus('denied');
+            } else if (errorMessage.includes('No cameras found')) {
+              setError('No se encontró ninguna cámara.');
+              setPermissionStatus('denied');
+            }
+            console.log('Error de escaneo:', errorMessage);
+          }
+        );
 
-          setPermissionStatus('granted');
-          setIsScanning(true);
-        } else {
-          setError('No se encontró ninguna cámara');
-          setPermissionStatus('denied');
-        }
+        setPermissionStatus('granted');
+        setIsScanning(true);
       } catch (err: any) {
         console.error('Error al iniciar escáner:', err);
-        
-        if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+
+        if (
+          err?.name === 'NotAllowedError' || err?.name === 'PermissionDeniedError') {
           setError('Permiso de cámara denegado. Por favor, permite el acceso a la cámara.');
           setPermissionStatus('denied');
-        } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+        } else if (err?.name === 'NotFoundError' || err?.name === 'DevicesNotFoundError') {
           setError('No se encontró ninguna cámara. Verifica que tu dispositivo tenga cámara.');
           setPermissionStatus('denied');
         } else {
-          setError(`Error al acceder a la cámara: ${err.message}`);
+          setError(`Error al acceder a la cámara: ${err?.message || String(err)}`);
           setPermissionStatus('denied');
         }
       }
@@ -83,7 +88,7 @@ const SimpleQRScanner: React.FC<SimpleQRScannerProps> = ({ onScan, onClose }) =>
   const stopScanner = async () => {
     if (scannerRef.current && isScanning) {
       try {
-        await scannerRef.current.stop();
+        scannerRef.current.clear();
         setIsScanning(false);
       } catch (err) {
         console.error('Error al detener escáner:', err);
@@ -100,13 +105,13 @@ const SimpleQRScanner: React.FC<SimpleQRScannerProps> = ({ onScan, onClose }) =>
     setError('');
     setPermissionStatus('unknown');
     setIsScanning(false);
-    
+
     // Reiniciar el escáner
     if (scannerRef.current) {
       scannerRef.current.clear();
       scannerRef.current = null;
     }
-    
+
     // Recargar la página para reiniciar completamente
     window.location.reload();
   };
