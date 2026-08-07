@@ -236,12 +236,7 @@ const ScanView: React.FC = () => {
                 <p className="text-sm text-gray-500">
                   Este código QR fue generado automáticamente
                 </p>
-                <button
-                  onClick={() => navigate('/')}
-                  className="text-sm text-orange-600 hover:text-orange-700 font-medium"
-                >
-                  Escanear Otro QR
-                </button>
+                
               </div>
             </div>
           </div>
